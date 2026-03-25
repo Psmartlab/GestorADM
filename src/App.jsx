@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react
 import { auth, googleProvider, db } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { LayoutDashboard, Users as UsersIcon, CheckSquare, Shield, LogOut, Loader2, AlertCircle, ClipboardCheck } from 'lucide-react';
+import { LayoutDashboard, Users as UsersIcon, CheckSquare, Shield, LogOut, Loader2, AlertCircle, ClipboardCheck, Database } from 'lucide-react';
 import Dashboard from './views/Dashboard';
 import Tasks from './views/Tasks';
 import Teams from './views/Teams';
@@ -11,6 +11,7 @@ import UsersPanel from './views/Users';
 import Checkins from './views/Checkins';
 import TaskControl from './views/TaskControl';
 import Projects from './views/Projects';
+import SeedData from './views/SeedData';
 
 // --- Login Screen ---
 const Login = ({ setUser }) => {
@@ -18,9 +19,9 @@ const Login = ({ setUser }) => {
 
   const handleLogin = async () => {
     try {
-      console.log("Iniciando login (Redirect)...");
-      setErrorMsg("Carregando (Redirecionando)...");
-      await signInWithRedirect(auth, googleProvider);
+      console.log("Iniciando login (Popup)...");
+      setErrorMsg("Carregando (Abrindo Janela)...");
+      await signInWithPopup(auth, googleProvider);
     } catch (error) {
       console.error("Login Error:", error);
       setErrorMsg(`Erro: ${error.message}`);
@@ -112,6 +113,7 @@ const DashboardLayout = ({ children, user }) => {
           <Link to="/teams" className={`btn w-full ${isActive('/teams') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><UsersIcon size={18} /> Equipes</Link>
           <Link to="/projects" className={`btn w-full ${isActive('/projects') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><LayoutDashboard size={18} /> Projetos</Link>
           <Link to="/users" className={`btn w-full ${isActive('/users') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><Shield size={18} /> Admin e Usuários</Link>
+          <Link to="/seed" className={`btn w-full ${isActive('/seed') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)' }}><Database size={18} /> Semear Dados</Link>
         </nav>
 
         <button className="btn btn-secondary" style={{ marginTop: 'auto', background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }} onClick={() => signOut(auth)}>
@@ -214,6 +216,7 @@ function App() {
                 <Route path="/teams" element={<Teams />} />
                 <Route path="/projects" element={<Projects user={user} />} />
                 <Route path="/users" element={<UsersPanel user={user} />} />
+                <Route path="/seed" element={<SeedData />} />
                 <Route path="/control" element={user?.role === 'Admin' ? <TaskControl /> : <Navigate to="/" />} />
               </Routes>
             </DashboardLayout>
