@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, addDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, User, LayoutGrid, List, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { Users, User, LayoutGrid, List, ChevronRight, ChevronDown, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
 
 const STATUS_COLUMNS = [
   { id: 'TODO', title: 'A Fazer', color: 'var(--text-primary)' },
@@ -97,20 +97,25 @@ export default function TaskControl() {
           <h1>Controle de Tarefas</h1>
           <p className="text-muted">Visão administrativa por {viewMode === 'team' ? 'equipes' : 'usuários'}</p>
         </div>
-        <div className="flex gap-2 bg-black/20 p-1 rounded-lg">
-          <button 
-            className={`btn btn-sm ${viewMode === 'team' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setViewMode('team')}
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-          >
-            <Users size={16} /> Por Equipes
-          </button>
-          <button 
-            className={`btn btn-sm ${viewMode === 'user' ? 'btn-primary' : 'btn-secondary'}`}
-            onClick={() => setViewMode('user')}
-            style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
-          >
-            <User size={16} /> Por Usuários
+        <div className="flex gap-4 items-center">
+          <div className="flex gap-2 bg-black/20 p-1 rounded-lg">
+            <button 
+              className={`btn btn-sm ${viewMode === 'team' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setViewMode('team')}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+            >
+              <Users size={16} /> Por Equipes
+            </button>
+            <button 
+              className={`btn btn-sm ${viewMode === 'user' ? 'btn-primary' : 'btn-secondary'}`}
+              onClick={() => setViewMode('user')}
+              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
+            >
+              <User size={16} /> Por Usuários
+            </button>
+          </div>
+          <button className="btn" onClick={() => openModal()}>
+            <LayoutGrid size={18} /> Nova Tarefa
           </button>
         </div>
       </header>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { collection, query, onSnapshot, doc, updateDoc, setDoc, where, getDocs, serverTimestamp } from 'firebase/firestore';
-import { db } from '../firebase';
+import { auth, db } from '../firebase';
 import { Shield, Clock, Search, Edit2, History, X, UserPlus, FileText } from 'lucide-react';
 
 export default function Users({ user }) {
@@ -112,19 +112,19 @@ export default function Users({ user }) {
     if (!matchesSearch) return false;
 
     // Filtro de Hierarquia
-    if (user?.role === 'Admin') return true;
-    if (user?.role === 'Gerente') {
-      // Regra: Pode ver se o usuário está em uma de suas equipes E NÃO está em nenhuma equipe de terceiros
-      const hasManagerTeam = u.teamIds?.some(tid => user.teamIds?.includes(tid)) || u.teamId === user.teamId;
-      const onlyManagerTeams = (u.teamIds || []).every(tid => user.teamIds?.includes(tid));
-      
-      // Caso o usuário ainda não tenha equipes (novato), o gerente que o convidou ou do mesmo time base pode ver?
-      // Pela especificação: "acesso aos demais usuários de nível abaixo dele. Desde que não esteja cadastrado como participante de outra equipe diferente do gerente"
+    // Se for Admin, vê tudo
+    if (user?.role?.toLowerCase() === 'admin') return true;
+
+    // Se for Gerente, vê sua equipe
+    if (user?.role === 'Gerente' || user?.role === 'Manager') {
+      const hasManagerTeam = (u.teamIds || []).some(tid => (user.teamIds || []).includes(tid)) || u.teamId === user.teamId;
+      const onlyManagerTeams = (u.teamIds || []).every(tid => (user.teamIds || []).includes(tid));
       return hasManagerTeam && onlyManagerTeams;
     }
     
-    // Membros normais só vêm a si mesmos? (Geralmente para perfil, mas aqui é painel de gestão)
-    return u.email === auth.currentUser?.email;
+    // Usuário normal vê a si mesmo
+    const currentUserEmail = user?.email || auth.currentUser?.email;
+    return u.email === currentUserEmail;
   });
 
   return (

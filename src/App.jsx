@@ -2,8 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, Link, useLocation } from 'react-router-dom';
 import { auth, googleProvider, db } from './firebase';
 import { onAuthStateChanged, signInWithPopup, signOut, signInWithRedirect, getRedirectResult } from 'firebase/auth';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { LayoutDashboard, Users as UsersIcon, CheckSquare, Shield, LogOut, Loader2, AlertCircle, ClipboardCheck, Database } from 'lucide-react';
+import { doc, setDoc, getDoc, query, collection, where, getDocs } from 'firebase/firestore';
+import { LayoutDashboard, Users as UsersIcon, CheckSquare, Shield, LogOut, Loader2, AlertCircle, ClipboardCheck, Database, Bell } from 'lucide-react';
 import Dashboard from './views/Dashboard';
 import Tasks from './views/Tasks';
 import Teams from './views/Teams';
@@ -12,6 +12,7 @@ import Checkins from './views/Checkins';
 import TaskControl from './views/TaskControl';
 import Projects from './views/Projects';
 import SeedData from './views/SeedData';
+import Notifications from './views/Notifications';
 
 // --- Login Screen ---
 const Login = ({ setUser }) => {
@@ -83,7 +84,7 @@ const Login = ({ setUser }) => {
 const DashboardLayout = ({ children, user }) => {
   const location = useLocation();
   const isActive = (path) => location.pathname === path;
-  const isAdmin = user?.role === 'Admin';
+  const isAdmin = user?.role?.toLowerCase() === 'admin';
 
   return (
     <div className="app-container">
@@ -104,15 +105,18 @@ const DashboardLayout = ({ children, user }) => {
           <Link to="/tasks" className={`btn w-full ${isActive('/tasks') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><CheckSquare size={18} /> Minhas Tarefas</Link>
           <Link to="/checkins" className={`btn w-full ${isActive('/checkins') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><ClipboardCheck size={18} /> Check-ins</Link>
           
-          {isAdmin && (
             <Link to="/control" className={`btn w-full ${isActive('/control') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none', background: isActive('/control') ? 'var(--accent-primary)' : 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
               <Shield size={18} /> Controle de Tarefas
             </Link>
-          )}
 
           <Link to="/teams" className={`btn w-full ${isActive('/teams') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><UsersIcon size={18} /> Equipes</Link>
           <Link to="/projects" className={`btn w-full ${isActive('/projects') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><LayoutDashboard size={18} /> Projetos</Link>
           <Link to="/users" className={`btn w-full ${isActive('/users') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none' }}><Shield size={18} /> Admin e Usuários</Link>
+          {isAdmin && (
+            <Link to="/notifications" className={`btn w-full ${isActive('/notifications') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+              <Bell size={18} /> Central de Notificações
+            </Link>
+          )}
           <Link to="/seed" className={`btn w-full ${isActive('/seed') ? 'btn-primary' : 'btn-secondary'}`} style={{ justifyContent: 'flex-start', textDecoration: 'none', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)' }}><Database size={18} /> Semear Dados</Link>
         </nav>
 
@@ -165,10 +169,27 @@ function App() {
           // Recupera o cargo do usuário no Firestore
           const userDoc = await getDoc(doc(db, 'users', currentUser.uid));
           const userData = userDoc.exists() ? userDoc.data() : {};
+          let role = userData.role || 'User';
           
+          // Fallback: Se não encontrou cargo pelo UID, busca pelo Email (caso tenha sido semeado ou convidado)
+          if (!userData.role && currentUser.email) {
+            try {
+              const q = query(collection(db, 'users'), where('email', '==', currentUser.email));
+              const snap = await getDocs(q);
+              if (!snap.empty) {
+                const emailDoc = snap.docs[0].data();
+                role = emailDoc.role || 'User';
+                console.log("Cargo recuperado via Email:", role);
+              }
+            } catch (e) {
+              console.error("Erro ao buscar cargo por email:", e);
+            }
+          }
+
           setUser({
             ...currentUser,
-            ...userData // Mescla UID, role, etc.
+            ...userData,
+            role: role // Garante que o role seja o encontrado (ou User)
           });
           
           // Salva/Atualiza o usuário no banco de dados em background
@@ -216,8 +237,9 @@ function App() {
                 <Route path="/teams" element={<Teams />} />
                 <Route path="/projects" element={<Projects user={user} />} />
                 <Route path="/users" element={<UsersPanel user={user} />} />
+                <Route path="/notifications" element={<Notifications user={user} />} />
                 <Route path="/seed" element={<SeedData />} />
-                <Route path="/control" element={user?.role === 'Admin' ? <TaskControl /> : <Navigate to="/" />} />
+                <Route path="/control" element={<TaskControl />} />
               </Routes>
             </DashboardLayout>
           ) : (

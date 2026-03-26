@@ -190,14 +190,28 @@ function Widget({ widget, data, isCustomizing, onRemove, onTitleChange, style, c
           </div>
         );
       }
-      case 'stat_todo':
+      case 'stat_todo': {
+        const todoTasks = data.tasks.filter(t => t.status === 'TODO' || t.status === 'Backlog').slice(0, widget.h > 1 ? 8 : 4);
         return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(255,255,255,0.05) 0%, transparent 100%)', padding: '0.5rem', borderRadius: '8px' }}>
-            <h3 className="text-muted text-xs flex items-center gap-1"><List size={12} color="var(--text-secondary)" /> {widget.title}</h3>
-            <p style={{ fontSize: '2.4rem', fontWeight: '800', lineHeight: 1, marginTop: '0.2rem' }}>{data.tasks.filter(t => t.status === 'TODO').length}</p>
-            <span className="text-xs text-muted">Aguardando início</span>
+          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
+            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><List size={16} color="var(--text-secondary)" /> {widget.title}</h3>
+            <div className="flex flex-col gap-2" style={{ flex: 1, overflow: 'auto' }}>
+              {todoTasks.map(t => (
+                <div key={t.id} className="flex justify-between items-center p-2" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: '3px solid var(--text-secondary)' }}>
+                  <div style={{ overflow: 'hidden', flex: 1 }}>
+                    <div style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{t.title}</div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{t.assignee || 'Sem responsável'}</div>
+                  </div>
+                  <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', marginLeft: '8px' }}>{t.priority}</span>
+                </div>
+              ))}
+              {todoTasks.length === 0 && (
+                <div className="flex-1 flex items-center justify-center text-muted text-xs">Nenhuma tarefa pendente</div>
+              )}
+            </div>
           </div>
         );
+      }
       default:
         return null;
     }

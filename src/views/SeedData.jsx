@@ -33,9 +33,11 @@ const SeedData = () => {
 
       // 2. Usuários
       const users = [
-        { id: 'user-manager', name: 'Marcos Gerente', email: 'marcos@test.com', role: 'Manager' },
-        { id: 'user-dev1', name: 'Ana Dev', email: 'ana@test.com', role: 'User' },
-        { id: 'user-dev2', name: 'Bruno Backend', email: 'bruno@test.com', role: 'User' }
+        { id: 'user-smartlab', name: 'Smart Lab (Admin)', email: 'propostas.smartlab@gmail.com', role: 'Admin', teamIds: ['eng-team', 'design-team'] },
+        { id: 'user-manager', name: 'Marcos Gerente', email: 'marcos@test.com', role: 'Manager', teamIds: ['eng-team'] },
+        { id: 'user-dev1', name: 'Ana Dev', email: 'ana@test.com', role: 'User', teamIds: ['design-team'] },
+        { id: 'user-dev2', name: 'Bruno Backend', email: 'bruno@test.com', role: 'User', teamIds: ['eng-team'] },
+        { id: 'user-marketing', name: 'Clara Mkt', email: 'clara@test.com', role: 'User', teamIds: ['marketing-team'] }
       ];
 
       for (const u of users) {
