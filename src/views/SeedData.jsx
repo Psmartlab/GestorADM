@@ -33,11 +33,11 @@ const SeedData = () => {
 
       // 2. Usuários
       const users = [
-        { id: 'user-smartlab', name: 'Smart Lab (Admin)', email: 'propostas.smartlab@gmail.com', role: 'Admin', teamIds: ['eng-team', 'design-team'] },
-        { id: 'user-manager', name: 'Marcos Gerente', email: 'marcos@test.com', role: 'Manager', teamIds: ['eng-team'] },
-        { id: 'user-dev1', name: 'Ana Dev', email: 'ana@test.com', role: 'User', teamIds: ['design-team'] },
-        { id: 'user-dev2', name: 'Bruno Backend', email: 'bruno@test.com', role: 'User', teamIds: ['eng-team'] },
-        { id: 'user-marketing', name: 'Clara Mkt', email: 'clara@test.com', role: 'User', teamIds: ['marketing-team'] }
+        { id: 'propostas.smartlab@gmail.com', name: 'Smart Lab (Admin)', email: 'propostas.smartlab@gmail.com', role: 'Admin', teamIds: ['eng-team', 'design-team'], projectIds: ['proj-gestor'] },
+        { id: 'marcos@test.com', name: 'Marcos Gerente', email: 'marcos@test.com', role: 'Manager', teamIds: ['eng-team'], projectIds: ['proj-gestor'] },
+        { id: 'ana@test.com', name: 'Ana Dev', email: 'ana@test.com', role: 'User', teamIds: ['design-team'], projectIds: ['proj-gestor'] },
+        { id: 'bruno@test.com', name: 'Bruno Backend', email: 'bruno@test.com', role: 'User', teamIds: ['eng-team'], projectIds: ['proj-gestor'] },
+        { id: 'clara@test.com', name: 'Clara Mkt', email: 'clara@test.com', role: 'User', teamIds: ['marketing-team'], projectIds: ['proj-gestor'] }
       ];
 
       for (const u of users) {
@@ -45,6 +45,8 @@ const SeedData = () => {
           name: u.name,
           email: u.email,
           role: u.role,
+          teamIds: u.teamIds || [],
+          projectIds: u.projectIds || [],
           createdAt: serverTimestamp()
         });
         addLog(`Usuário ${u.name} criado.`);
@@ -59,6 +61,7 @@ const SeedData = () => {
       for (const p of projects) {
         await setDoc(doc(db, 'projects', p.id), {
           name: p.name,
+          title: p.name,
           status: p.status,
           members: p.members,
           createdAt: serverTimestamp()
@@ -68,11 +71,12 @@ const SeedData = () => {
 
       // 4. Tarefas
       const tasks = [
-        { title: 'Refatorar Login', status: 'In Progress', priority: 'High', team: 'eng-team', assignee: 'user-dev1' },
-        { title: 'Criar Landing Page', status: 'Done', priority: 'Medium', team: 'design-team', assignee: 'user-dev1' },
-        { title: 'Configurar DB', status: 'Backlog', priority: 'High', team: 'eng-team', assignee: 'user-dev2' },
-        { title: 'Campanha Social', status: 'To Do', priority: 'Low', team: 'marketing-team', assignee: 'user-manager' },
-        { title: 'Ajustar Cores', status: 'In Progress', priority: 'Medium', team: 'design-team', assignee: 'user-dev1' }
+        { title: 'Refatorar Login', status: 'IN_PROGRESS', priority: 'High', team: 'eng-team', assignee: 'bruno@test.com' },
+        { title: 'Criar Landing Page', status: 'DONE', priority: 'Medium', team: 'design-team', assignee: 'ana@test.com' },
+        { title: 'Configurar DB', status: 'TODO', priority: 'High', team: 'eng-team', assignee: 'bruno@test.com' },
+        { title: 'Validação de Segurança', status: 'UNDER_REVIEW', priority: 'High', team: 'eng-team', assignee: 'ana@test.com' },
+        { title: 'Campanha Social', status: 'TODO', priority: 'Low', team: 'marketing-team', assignee: 'clara@test.com' },
+        { title: 'Ajustar Cores', status: 'IN_PROGRESS', priority: 'Medium', team: 'design-team', assignee: 'ana@test.com' }
       ];
 
       for (const t of tasks) {

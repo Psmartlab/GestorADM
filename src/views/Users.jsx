@@ -16,6 +16,7 @@ export default function Users({ user }) {
   const [newUserRole, setNewUserRole] = useState('Membro');
   
   const [editingUser, setEditingUser] = useState(null);
+  const [newUserProjectId, setNewUserProjectId] = useState('');
   
   const [historyUser, setHistoryUser] = useState(null);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -46,20 +47,23 @@ export default function Users({ user }) {
     e.preventDefault();
     const email = newUserEmail.trim().toLowerCase();
     if (!email) return;
+    if (!(editingUser?.projectIds?.length > 0) && !newUserProjectId) {
+       alert("Selecione pelo menos um projeto para o usuário.");
+       return;
+    }
 
-    // Use email as temporary ID to prevent duplicates if they haven't logged in yet
-    // When they login via Google, we shouldn't overwrite the role, but update uid.
-    // For simplicity, we just add them using an auto-ID or their email.
     try {
       await setDoc(doc(db, 'users', email), {
         email: email,
         name: 'Aguardando Login',
         role: newUserRole,
+        projectIds: [newUserProjectId],
         invitedAt: serverTimestamp()
       }, { merge: true });
       
       setIsInviteModalOpen(false);
       setNewUserEmail('');
+      setNewUserProjectId('');
     } catch (error) {
       alert("Erro ao convidar: " + error.message);
     }
@@ -68,6 +72,10 @@ export default function Users({ user }) {
   const handleUpdateUser = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    if (!editingUser.projectIds || editingUser.projectIds.length === 0) {
+      alert("O usuário deve estar atrelado a pelo menos um projeto.");
+      return;
+    }
     try {
       await updateDoc(doc(db, 'users', editingUser.id), {
         role: editingUser.role,
@@ -128,77 +136,104 @@ export default function Users({ user }) {
   });
 
   return (
-    <div className="flex-col gap-6" style={{ height: '100%' }}>
-      <div className="flex justify-between items-center">
-        <h1>Gestão de Usuários</h1>
-        <button className="btn" onClick={() => setIsInviteModalOpen(true)}>
+    <div className="p-8">
+      <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-10">
+        <div>
+          <h1 className="text-4xl font-black tracking-tighter text-slate-950 font-headline m-0 uppercase italic">Gestão de Usuários</h1>
+          <p className="text-slate-400 font-bold text-sm uppercase tracking-widest opacity-60">Controle de acessos, permissões e auditoria</p>
+        </div>
+        <button className="flex items-center gap-2 px-6 py-3 bg-slate-950 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 shadow-lg active:scale-95" onClick={() => setIsInviteModalOpen(true)}>
           <UserPlus size={18} /> Cadastrar / Convidar
         </button>
       </div>
 
-      <div className="glass-panel p-4 flex gap-2 w-full" style={{ marginBottom: '1rem' }}>
-        <Search size={18} color="var(--text-secondary)" />
+      <div className="bg-white p-6 rounded-[24px] border-2 border-slate-300 shadow-sm flex items-center gap-4 mb-10 group focus-within:border-slate-950 transition-all">
+        <Search size={20} className="text-slate-300 group-focus-within:text-slate-950 transition-colors" />
         <input 
           type="text" 
-          placeholder="Buscar usuário por nome ou email..." 
+          placeholder="BUSCAR USUÁRIO POR NOME OU EMAIL..." 
+          className="flex-1 bg-transparent border-none text-slate-900 font-bold placeholder:text-slate-200 uppercase tracking-widest text-[11px] outline-none"
           value={searchTerm}
           onChange={e => setSearchTerm(e.target.value)}
-          style={{ flex: 1, background: 'transparent', border: 'none', color: 'white', outline: 'none' }}
         />
       </div>
 
-      <div className="glass-panel" style={{ overflowX: 'auto', borderRadius: '12px' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
-          <thead>
-            <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'rgba(0,0,0,0.3)' }}>
-              <th style={{ padding: '1rem' }}>Usuário</th>
-              <th style={{ padding: '1rem' }}>Nível de Acesso</th>
-              <th style={{ padding: '1rem' }}>Status</th>
-              <th style={{ padding: '1rem' }}>Validade</th>
-              <th style={{ padding: '1rem', textAlign: 'right' }}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+      <div className="bg-white rounded-[24px] shadow-sm border-2 border-slate-300 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-50 border-b-2 border-slate-100 italic uppercase tracking-[0.2em] text-[10px] font-black text-slate-500">
+                <th className="px-8 py-5">Usuário</th>
+                <th className="px-8 py-5">Nível</th>
+                <th className="px-8 py-5">Projetos Ativos</th>
+                <th className="px-8 py-5">Status</th>
+                <th className="px-8 py-5">Acesso</th>
+                <th className="px-8 py-5 text-right">Ações</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center' }}>Carregando usuários...</td></tr>
+              <tr><td colSpan="6" className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Carregando usuários...</td></tr>
             ) : filteredUsers.length === 0 ? (
-              <tr><td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Nenhum usuário encontrado.</td></tr>
+              <tr><td colSpan="6" className="px-8 py-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs">Nenhum usuário encontrado.</td></tr>
             ) : (
               filteredUsers.map(u => {
                 const isExpired = u.expiresAt && new Date(u.expiresAt) < new Date();
                 const isBlocked = u.status === 'blocked';
-                const statusColor = isBlocked ? 'var(--danger)' : isExpired ? 'var(--warning)' : 'var(--success)';
+                const statusClass = isBlocked ? 'bg-red-50 text-red-600 border-red-100' : isExpired ? 'bg-amber-50 text-amber-600 border-amber-100' : 'bg-emerald-50 text-emerald-600 border-emerald-100';
                 const statusText = isBlocked ? 'Bloqueado' : isExpired ? 'Expirado' : 'Ativo';
 
                 return (
-                  <tr key={u.id} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <td style={{ padding: '1rem' }}>
-                      <div className="flex items-center gap-3">
-                        {u.photo ? <img src={u.photo} alt="Avatar" style={{ width: 32, height: 32, borderRadius: '50%' }} /> : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>{u.name?.charAt(0) || u.email?.charAt(0)}</div>}
+                  <tr key={u.id} className="hover:bg-slate-50/50 transition-colors group">
+                    <td className="px-8 py-6">
+                      <div className="flex items-center gap-4">
+                        <div className="w-10 h-10 rounded-full bg-slate-950 border-2 border-slate-200 flex items-center justify-center text-white font-black text-xs">
+                          {u.photo ? <img src={u.photo} alt="" className="w-full h-full rounded-full" /> : (u.name?.charAt(0) || u.email?.charAt(0))}
+                        </div>
                         <div>
-                          <div style={{ fontWeight: 600 }}>{u.name}</div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{u.email}</div>
+                          <div className="font-black text-slate-950 tracking-tight">{u.name || 'Sem Nome'}</div>
+                          <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{u.email}</div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ padding: '0.2rem 0.6rem', borderRadius: '20px', background: 'rgba(255,255,255,0.1)', fontSize: '0.85rem' }}>
-                        <Shield size={12} style={{ display: 'inline', marginRight: '4px' }}/> {u.role || 'Membro'}
+                    <td className="px-8 py-6">
+                      <span className="px-3 py-1 bg-slate-100 text-slate-600 border-2 border-slate-50 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 w-fit">
+                        <Shield size={12}/> {u.role || 'Membro'}
                       </span>
                     </td>
-                    <td style={{ padding: '1rem' }}>
-                      <span style={{ color: statusColor, fontWeight: 600, fontSize: '0.9rem' }}>● {statusText}</span>
+                    <td className="px-8 py-6">
+                      <div className="flex flex-wrap gap-2 max-w-[200px]">
+                        {(u.projectIds || []).length > 0 ? (
+                          u.projectIds.map(pid => {
+                            const p = projects.find(proj => proj.id === pid);
+                            return (
+                              <span key={pid} className="text-[9px] font-black bg-blue-50 text-blue-600 px-2 py-1 rounded-lg border-2 border-blue-100 uppercase tracking-tight">
+                                {p ? p.name || p.title : 'N/A'}
+                              </span>
+                            );
+                          })
+                        ) : (
+                          <span className="text-[9px] font-black text-slate-300 uppercase italic">Nenhum</span>
+                        )}
+                      </div>
                     </td>
-                    <td style={{ padding: '1rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                      {u.expiresAt ? new Date(u.expiresAt).toLocaleDateString() : 'Acesso Vitalício'}
+                    <td className="px-8 py-6">
+                       <span className={`px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-widest border shadow-sm ${statusClass}`}>
+                        {statusText}
+                      </span>
                     </td>
-                    <td style={{ padding: '1rem', textAlign: 'right' }}>
-                      <button className="btn btn-secondary text-sm" onClick={() => loadUserHistory(u.email)} style={{ padding: '0.4rem 0.6rem', background: 'transparent', border: 'none' }} title="Histórico de Ações">
-                        <History size={16} color="var(--accent-primary)" />
-                      </button>
-                      <button className="btn btn-secondary text-sm" onClick={() => setEditingUser(u)} style={{ padding: '0.4rem 0.6rem', background: 'transparent', border: 'none' }} title="Editar Permissões">
-                        <Edit2 size={16} />
-                      </button>
+                    <td className="px-8 py-6 text-[10px] font-black text-slate-400 italic">
+                      {u.expiresAt ? new Date(u.expiresAt).toLocaleDateString() : 'VITALÍCIO'}
+                    </td>
+                    <td className="px-8 py-6 text-right">
+                      <div className="flex justify-end gap-2">
+                        <button type="button" className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-950 hover:text-white rounded-xl transition-all" onClick={() => loadUserHistory(u.email)} title="Auditoria">
+                          <History size={16} />
+                        </button>
+                        <button type="button" className="p-2 bg-slate-50 text-slate-400 hover:bg-slate-950 hover:text-white rounded-xl transition-all" onClick={() => setEditingUser(u)} title="Permissões">
+                          <Edit2 size={16} />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 )
@@ -207,32 +242,47 @@ export default function Users({ user }) {
           </tbody>
         </table>
       </div>
+    </div>
 
       {/* Modal de Convite */}
       {isInviteModalOpen && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <form className="glass-panel p-8 flex-col gap-4" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg-secondary)', position: 'relative' }} onSubmit={handleInviteUser}>
-            <button type="button" onClick={() => setIsInviteModalOpen(false)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={24} /></button>
-            <h2>Novo Usuário</h2>
-            <p className="text-sm text-muted">Pré-cadastro para acesso ao sistema. Uma vez logado usando a conta Google com este e-mail, ele herdará este cargo.</p>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <form className="bg-white rounded-[32px] p-10 border-2 border-slate-300 shadow-2xl w-full max-w-[440px] relative animate-in fade-in zoom-in duration-300" onSubmit={handleInviteUser}>
+            <button type="button" onClick={() => setIsInviteModalOpen(false)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-black text-slate-950 font-headline tracking-tighter uppercase italic mb-2">Novo Usuário</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 leading-relaxed">Pré-cadastro para acesso ao sistema via Google Auth.</p>
             
-            <div className="mt-4">
-              <label className="text-sm text-muted mb-2 block">E-mail do Usuário</label>
-              <input required type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} className="w-full p-3 rounded" style={{ background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }} />
-            </div>
-            
-            <div>
-              <label className="text-sm text-muted mb-2 block">Nível de Acesso Inicial</label>
-              <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} className="w-full p-3 rounded" style={{ background: '#0f172a', color: 'white', border: '1px solid var(--border-color)' }}>
-                <option value="Membro">Membro comum</option>
-                <option value="Gerente">Gerente de Equipe</option>
-                <option value="Admin">Administrador Global</option>
-              </select>
-            </div>
-            
-            <div className="flex gap-4 mt-4">
-              <button type="button" className="btn btn-secondary flex-1" onClick={() => setIsInviteModalOpen(false)}>Cancelar</button>
-              <button type="submit" className="btn flex-1">Registrar Acesso</button>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">E-mail Corporativo</label>
+                <input required type="email" value={newUserEmail} onChange={e => setNewUserEmail(e.target.value)} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 font-bold text-slate-800 focus:border-slate-800 outline-none transition-all placeholder:text-slate-200" placeholder="ex: usuario@empresa.com" />
+              </div>
+              
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Nível de Acesso</label>
+                <select value={newUserRole} onChange={e => setNewUserRole(e.target.value)} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 font-black uppercase tracking-widest text-xs text-slate-800 focus:border-slate-800 outline-none transition-all appearance-none cursor-pointer">
+                  <option value="Membro">Membro comum</option>
+                  <option value="Gerente">Gerente de Equipe</option>
+                  <option value="Admin">Administrador Global</option>
+                </select>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Projeto Obrigatório</label>
+                <select required value={newUserProjectId} onChange={e => setNewUserProjectId(e.target.value)} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 font-black uppercase tracking-widest text-xs text-slate-800 focus:border-slate-800 outline-none transition-all appearance-none cursor-pointer">
+                  <option value="">Selecione...</option>
+                  {projects.map(p => (
+                    <option key={p.id} value={p.id}>{p.title || p.name}</option>
+                  ))}
+                </select>
+              </div>
+              
+              <div className="flex gap-4 mt-4">
+                <button type="button" className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all" onClick={() => setIsInviteModalOpen(false)}>Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-lg active:scale-95">Registrar</button>
+              </div>
             </div>
           </form>
         </div>
@@ -240,79 +290,85 @@ export default function Users({ user }) {
 
       {/* Modal de Edição */}
       {editingUser && (
-        <div style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.7)', zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <form className="glass-panel p-8 flex-col gap-4" style={{ width: '100%', maxWidth: '400px', backgroundColor: 'var(--bg-secondary)', position: 'relative' }} onSubmit={handleUpdateUser}>
-            <button type="button" onClick={() => setEditingUser(null)} style={{ position: 'absolute', top: '1.5rem', right: '1.5rem', background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}><X size={24} /></button>
-            <h2>Editar Permissões</h2>
-            <p className="text-sm text-muted">Ajuste o acesso para: <strong style={{color: 'white'}}>{editingUser.name || editingUser.email}</strong></p>
+        <div className="fixed inset-0 bg-slate-950/40 backdrop-blur-sm z-[100] flex items-center justify-center p-6">
+          <form className="bg-white rounded-[32px] p-10 border-2 border-slate-300 shadow-2xl w-full max-w-[500px] relative animate-in fade-in zoom-in duration-300" onSubmit={handleUpdateUser}>
+            <button type="button" onClick={() => setEditingUser(null)} className="absolute top-8 right-8 text-slate-300 hover:text-slate-900 transition-colors">
+              <X size={24} />
+            </button>
+            <h2 className="text-2xl font-black text-slate-950 font-headline tracking-tighter uppercase italic mb-2">Editar Acessos</h2>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-8 leading-relaxed">Configurando: <span className="text-slate-950 italic">{editingUser.name || editingUser.email}</span></p>
             
-            <div className="mt-4">
-              <label className="text-sm text-muted mb-2 block">Categoria / Função</label>
-              <select value={editingUser.role || 'Membro'} onChange={e => setEditingUser({...editingUser, role: e.target.value})} className="w-full p-3 rounded" style={{ background: '#0f172a', color: 'white', border: '1px solid var(--border-color)' }}>
-                <option value="Membro">Membro comum</option>
-                <option value="Gerente">Gerente de Equipe</option>
-                <option value="Admin">Administrador Global</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="text-sm text-muted mb-2 block flex items-center gap-2"><Clock size={16}/> Prazo de Acesso</label>
-              <input type="date" value={editingUser.expiresAt || ''} onChange={e => setEditingUser({...editingUser, expiresAt: e.target.value})} className="w-full p-3 rounded" style={{ background: 'rgba(0,0,0,0.2)', color: 'white', border: '1px solid var(--border-color)' }} />
-              <div className="text-xs text-muted mt-1">Deixe em branco para acesso sem vencimento.</div>
-            </div>
-
-            <div>
-              <label className="text-sm text-muted mb-2 block">Status Geral</label>
-              <select value={editingUser.status || 'active'} onChange={e => setEditingUser({...editingUser, status: e.target.value})} className="w-full p-3 rounded" style={{ background: '#0f172a', color: 'white', border: '1px solid var(--border-color)' }}>
-                <option value="active">🟢 Ativo (Acesso Permitido)</option>
-                <option value="blocked">🔴 Bloqueado (Acesso Negado)</option>
-              </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 mt-2">
-              <div>
-                <label className="text-sm text-muted mb-2 block">Equipes Vinculadas</label>
-                <div className="flex-col gap-1 overflow-y-auto p-2 glass-panel" style={{ maxHeight: '150px' }}>
-                  {teams.map(t => (
-                    <label key={t.id} className="flex items-center gap-2 text-xs p-1 hover:bg-white/5 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={(editingUser.teamIds || []).includes(t.id)} 
-                        onChange={(e) => {
-                          const ids = editingUser.teamIds || [];
-                          const newIds = e.target.checked ? [...ids, t.id] : ids.filter(id => id !== t.id);
-                          setEditingUser({ ...editingUser, teamIds: newIds });
-                        }}
-                      />
-                      {t.name}
-                    </label>
-                  ))}
+            <div className="flex flex-col gap-6">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Categoria</label>
+                  <select value={editingUser.role || 'Membro'} onChange={e => setEditingUser({...editingUser, role: e.target.value})} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 font-black uppercase tracking-widest text-xs text-slate-800 focus:border-slate-800 outline-none transition-all appearance-none cursor-pointer">
+                    <option value="Membro">Membro comum</option>
+                    <option value="Gerente">Gerente de Equipe</option>
+                    <option value="Admin">Administrador Global</option>
+                  </select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1">Status</label>
+                  <select value={editingUser.status || 'active'} onChange={e => setEditingUser({...editingUser, status: e.target.value})} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 font-black uppercase tracking-widest text-xs text-slate-800 focus:border-slate-800 outline-none transition-all appearance-none cursor-pointer">
+                    <option value="active">🟢 Ativo</option>
+                    <option value="blocked">🔴 Bloqueado</option>
+                  </select>
                 </div>
               </div>
-              <div>
-                <label className="text-sm text-muted mb-2 block">Projetos Ativos</label>
-                <div className="flex-col gap-1 overflow-y-auto p-2 glass-panel" style={{ maxHeight: '150px' }}>
-                  {projects.map(p => (
-                    <label key={p.id} className="flex items-center gap-2 text-xs p-1 hover:bg-white/5 cursor-pointer">
-                      <input 
-                        type="checkbox" 
-                        checked={(editingUser.projectIds || []).includes(p.id)} 
-                        onChange={(e) => {
-                          const ids = editingUser.projectIds || [];
-                          const newIds = e.target.checked ? [...ids, p.id] : ids.filter(id => id !== p.id);
-                          setEditingUser({ ...editingUser, projectIds: newIds });
-                        }}
-                      />
-                      {p.name}
-                    </label>
-                  ))}
+
+              <div className="flex flex-col gap-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 pl-1 flex items-center gap-2"><Clock size={16}/> Validade da Licença</label>
+                <input type="date" value={editingUser.expiresAt || ''} onChange={e => setEditingUser({...editingUser, expiresAt: e.target.value})} className="bg-slate-50 border-2 border-slate-200 rounded-xl p-4 font-bold text-slate-800 focus:border-slate-800 outline-none transition-all" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Equipes</label>
+                  <div className="flex flex-col gap-2 overflow-y-auto p-4 bg-slate-50 rounded-2xl border-2 border-slate-100" style={{ maxHeight: '120px' }}>
+                    {teams.map(t => (
+                      <label key={t.id} className="flex items-center gap-3 text-[10px] font-bold text-slate-600 uppercase tracking-tight cursor-pointer hover:text-slate-950 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          className="w-3.5 h-3.5 rounded border-2 border-slate-300 text-slate-950 focus:ring-0"
+                          checked={(editingUser.teamIds || []).includes(t.id)} 
+                          onChange={(e) => {
+                            const ids = editingUser.teamIds || [];
+                            const newIds = e.target.checked ? [...ids, t.id] : ids.filter(id => id !== t.id);
+                            setEditingUser({ ...editingUser, teamIds: newIds });
+                          }}
+                        />
+                        {t.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2 block">Projetos *</label>
+                  <div className="flex flex-col gap-2 overflow-y-auto p-4 bg-slate-50 rounded-2xl border-2 border-slate-100" style={{ maxHeight: '120px' }}>
+                    {projects.map(p => (
+                      <label key={p.id} className="flex items-center gap-3 text-[10px] font-bold text-slate-600 uppercase tracking-tight cursor-pointer hover:text-slate-950 transition-colors">
+                        <input 
+                          type="checkbox" 
+                          className="w-3.5 h-3.5 rounded border-2 border-slate-300 text-slate-950 focus:ring-0"
+                          checked={(editingUser.projectIds || []).includes(p.id)} 
+                          onChange={(e) => {
+                            const ids = editingUser.projectIds || [];
+                            const newIds = e.target.checked ? [...ids, p.id] : ids.filter(id => id !== p.id);
+                            setEditingUser({ ...editingUser, projectIds: newIds });
+                          }}
+                        />
+                        {p.name || p.title}
+                      </label>
+                    ))}
+                  </div>
                 </div>
               </div>
-            </div>
-            
-            <div className="flex gap-4 mt-6">
-              <button type="button" className="btn btn-secondary flex-1" onClick={() => setEditingUser(null)}>Cancelar</button>
-              <button type="submit" className="btn flex-1">Salvar Alteraçoes</button>
+              
+              <div className="flex gap-4 mt-4">
+                <button type="button" className="flex-1 py-4 bg-slate-100 text-slate-400 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-slate-200 transition-all" onClick={() => setEditingUser(null)}>Cancelar</button>
+                <button type="submit" className="flex-1 py-4 bg-slate-950 text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:scale-105 transition-all shadow-lg active:scale-95">Salvar</button>
+              </div>
             </div>
           </form>
         </div>
@@ -320,31 +376,50 @@ export default function Users({ user }) {
 
       {/* Slide de Histórico (Auditoria) */}
       {historyUser && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 90, display: 'flex', justifyContent: 'flex-end', backgroundColor: 'rgba(0,0,0,0.5)' }}>
-          <div className="glass-panel" style={{ width: '450px', height: '100%', borderRadius: 0, padding: '2rem', overflowY: 'auto', background: 'var(--bg-primary)', animation: 'slideIn 0.3s forwards', borderLeft: '1px solid rgba(255,255,255,0.1)' }}>
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="flex items-center gap-2"><FileText size={20} /> Histórico de Auditoria</h2>
-              <button onClick={() => setHistoryUser(null)} className="btn btn-secondary" style={{ padding: '0.4rem', border: 'none' }}><X size={20} /></button>
+        <div className="fixed inset-0 z-[90] flex justify-end bg-slate-950/20 backdrop-blur-[2px] animate-in fade-in duration-300">
+          <div className="w-full max-w-[480px] bg-white h-full shadow-2xl border-l-4 border-slate-950 p-10 overflow-y-auto animate-in slide-in-from-right duration-500">
+            <div className="flex justify-between items-center mb-10">
+              <div>
+                <h2 className="text-2xl font-black text-slate-950 font-headline tracking-tighter uppercase italic flex items-center gap-3">
+                  <FileText size={24} /> Trilha de Auditoria
+                </h2>
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mt-2">Registros de atividade para: <span className="text-slate-900 border-b-2 border-slate-950">{historyUser}</span></p>
+              </div>
+              <button onClick={() => setHistoryUser(null)} className="p-3 bg-slate-50 text-slate-400 rounded-2xl hover:bg-slate-950 hover:text-white transition-all shadow-sm">
+                <X size={20} />
+              </button>
             </div>
-            <p className="text-muted text-sm mb-6">Visualizando as últimas ações computadas de: <strong>{historyUser}</strong></p>
             
-            <div className="flex-col gap-4">
+            <div className="flex flex-col gap-6">
               {auditLogs.length === 0 ? (
-                <div className="text-muted text-center p-8 bg-black/20 rounded">Nenhum registro encontrado para este usuário.</div>
+                <div className="text-center py-20 bg-slate-50 rounded-[32px] border-2 border-slate-100 border-dashed">
+                  <History size={48} className="mx-auto mb-4 text-slate-200" />
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">Nenhuma ação registrada.</p>
+                </div>
               ) : (
-                auditLogs.map(log => {
-                  let logDateString = 'Processando instante...';
+                auditLogs.map((log, index) => {
+                  let logDateString = '...';
                   if (log.created_at && log.created_at.toDate) {
-                    logDateString = log.created_at.toDate().toLocaleString();
+                    logDateString = log.created_at.toDate().toLocaleString('pt-BR');
                   }
 
                   return (
-                    <div key={log.id} style={{ borderLeft: '2px solid var(--accent-primary)', paddingLeft: '1rem', marginBottom: '1rem' }}>
-                      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.3rem' }}>
-                        {logDateString} 
-                        <span style={{ marginLeft: '1rem', background: 'rgba(255,255,255,0.1)', padding: '2px 8px', borderRadius: '10px' }}>{log.target_type} : {log.action}</span>
+                    <div key={log.id} className="relative pl-8 group">
+                      {index !== auditLogs.length - 1 && (
+                        <div className="absolute left-[3px] top-8 bottom-[-24px] w-0.5 bg-slate-100" />
+                      )}
+                      <div className="absolute left-0 top-1.5 w-2 h-2 rounded-full bg-slate-950 ring-4 ring-slate-50" />
+                      
+                      <div className="flex flex-col gap-1 mb-2">
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-300 italic">{logDateString}</span>
+                        <div className="flex items-center gap-2">
+                          <span className="px-2 py-0.5 bg-slate-900 text-white rounded text-[8px] font-black uppercase tracking-tighter italic">{log.target_type}</span>
+                          <span className="text-[11px] font-black text-slate-950 uppercase tracking-tight">{log.action}</span>
+                        </div>
                       </div>
-                      <div style={{ fontSize: '0.95rem' }}>{log.details}</div>
+                      <div className="bg-slate-50 p-4 rounded-xl border-2 border-slate-100 text-xs font-bold text-slate-600 leading-relaxed italic border-dashed group-hover:border-slate-300 transition-all">
+                        "{log.details}"
+                      </div>
                     </div>
                   );
                 })
