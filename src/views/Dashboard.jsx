@@ -1,551 +1,417 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import gsap from 'gsap';
+import { useGSAP } from '@gsap/react';
 import { db, auth } from '../firebase';
-import { Clock, Users, CheckCircle2, TrendingUp, AlertTriangle, Calendar, CheckSquare, MessageSquare, RotateCcw, Grid, X, List } from 'lucide-react';
-import GridLayout from 'react-grid-layout';
-import 'react-grid-layout/css/styles.css';
-import 'react-resizable/css/styles.css';
+import { collection, query, onSnapshot, orderBy } from 'firebase/firestore';
+import TeamDashboard from './TeamDashboard';
+import ProjectDashboard from './ProjectDashboard';
+import UserDashboard from './UserDashboard';
+import KpiCard from '../components/common/KpiCard';
+import TabSwitcher from '../components/common/TabSwitcher';
+import SectionHeader from '../components/common/SectionHeader';
+import { cn } from '../utils/cn';
+import { LayoutDashboard, Users, Database, Shield, ListTodo, History, Eye, CheckCircle2, AlertTriangle, Rocket } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
-const DEFAULT_LAYOUT = [
-  { i: 'w1', x: 0, y: 0, w: 3, h: 1, type: 'stat_inprogress', title: 'Tarefas Ativas' },
-  { i: 'w2', x: 3, y: 0, w: 3, h: 1, type: 'stat_teams', title: 'Total de Equipes' },
-  { i: 'w3', x: 6, y: 0, w: 3, h: 1, type: 'stat_done', title: 'Concluídas' },
-  { i: 'w4', x: 9, y: 0, w: 3, h: 1, type: 'stat_checkins', title: 'Check-ins (Hoje)' },
-  { i: 'w5', x: 0, y: 1, w: 8, h: 3, type: 'productivity', title: 'Tendência de Produtividade' },
-  { i: 'w6', x: 8, y: 1, w: 4, h: 3, type: 'alerts', title: 'Centro de Alertas' },
-  { i: 'w7', x: 0, y: 4, w: 6, h: 3, type: 'recentTasks', title: 'Histórico de Atividades' },
-  { i: 'w10', x: 6, y: 4, w: 6, h: 3, type: 'pendingTasks', title: 'Agenda de Entregas' },
-  { i: 'w8', x: 0, y: 7, w: 6, h: 3, type: 'checkins', title: 'Feed de Check-ins' },
-  { i: 'w9', x: 6, y: 7, w: 6, h: 3, type: 'stat_todo', title: 'Tarefas a Fazer' },
-];
-
-const COLS = 12;
-const ROW_HEIGHT = 100;
-
-function Widget({ widget, data, isCustomizing, onRemove, onTitleChange, style, className, ...props }) {
-  const content = () => {
-    switch (widget.type) {
-      case 'stat_inprogress':
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(59,130,246,0.1) 0%, transparent 100%)', padding: '0.5rem', borderRadius: '8px' }}>
-            <h3 className="text-muted text-xs flex items-center gap-1"><Clock size={12} color="var(--accent-primary)" /> {widget.title}</h3>
-            <p style={{ fontSize: '2.4rem', fontWeight: '800', lineHeight: 1, marginTop: '0.2rem' }}>{data.stats.inProgressTasks}</p>
-          </div>
-        );
-      case 'stat_teams':
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', background: 'linear-gradient(135deg, rgba(168,85,247,0.1) 0%, transparent 100%)', padding: '0.5rem', borderRadius: '8px' }}>
-            <h3 className="text-muted text-xs flex items-center gap-1"><Users size={12} color="#a855f7" /> {widget.title}</h3>
-            <p style={{ fontSize: '2.4rem', fontWeight: '800', lineHeight: 1 }}>{data.stats.totalTeams}</p>
-            <span className="text-xs text-muted">{data.stats.totalUsers} usuários</span>
-          </div>
-        );
-      case 'stat_done':
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderTop: '3px solid var(--success)', paddingTop: '0.5rem', background: 'linear-gradient(180deg, rgba(16,185,129,0.05) 0%, transparent 100%)' }}>
-            <h3 className="text-muted text-xs flex items-center gap-1"><CheckCircle2 size={12} color="var(--success)" /> {widget.title}</h3>
-            <p style={{ fontSize: '2.4rem', fontWeight: '800', lineHeight: 1, color: 'var(--success)' }}>{data.stats.completedTasks}</p>
-            <span className="text-xs text-muted">de {data.stats.totalTasks} tarefas</span>
-          </div>
-        );
-      case 'stat_checkins':
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'center', borderTop: `3px solid ${data.stats.userCheckedIn ? 'var(--success)' : 'var(--warning)'}`, paddingTop: '0.5rem', background: data.stats.userCheckedIn ? 'rgba(16,185,129,0.05)' : 'rgba(245,158,11,0.05)' }}>
-            <h3 className="text-muted text-xs">{widget.title}</h3>
-            <p style={{ fontSize: '2.4rem', fontWeight: '800', lineHeight: 1, color: data.stats.userCheckedIn ? 'var(--success)' : 'var(--warning)' }}>{data.stats.checkinsToday}</p>
-            <div className="flex items-center gap-1">
-               <span className="text-xs" style={{ color: data.stats.userCheckedIn ? 'var(--success)' : 'var(--warning)' }}>
-                {data.stats.userCheckedIn ? '✔ Seu check-in está em dia' : '⚠ Você ainda não fez check-in'}
-              </span>
-            </div>
-          </div>
-        );
-      case 'productivity': {
-        const last7Days = [];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        for (let i = 6; i >= 0; i--) {
-          const date = new Date(today);
-          date.setDate(date.getDate() - i);
-          let done = 0, created = 0;
-          data.tasks.forEach(t => {
-            if (t.created_at) {
-              const d = t.created_at.toDate ? t.created_at.toDate() : new Date(t.created_at);
-              if (d.toDateString() === date.toDateString()) created++;
-            }
-            if (t.status === 'DONE' && t.updated_at) {
-               // Assuming logic for done date might be needed, but staying simple
-            }
-          });
-          last7Days.push({ label: date.toLocaleDateString('pt-BR', { weekday: 'short' }), done: Math.floor(Math.random() * 5), created }); // Adding random done for visual
-        }
-        const maxVal = Math.max(...last7Days.map(d => Math.max(d.done, d.created)), 1);
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><TrendingUp size={16} color="var(--accent-primary)" /> {widget.title}</h3>
-            <div className="flex gap-2" style={{ flex: 1, minHeight: 100, alignItems: 'flex-end', paddingBottom: '0.5rem' }}>
-              {last7Days.map((day, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center" style={{ height: '100%', justifyContent: 'flex-end' }}>
-                  <div className="flex gap-1" style={{ width: '100%', height: '100%', alignItems: 'flex-end', justifyContent: 'center', background: 'rgba(255,255,255,0.02)', borderRadius: '4px 4px 0 0' }}>
-                    <div style={{ width: '8px', height: `${(day.done / maxVal) * 100}%`, background: 'var(--success)', borderRadius: '4px 4px 0 0', boxShadow: '0 0 10px rgba(16,185,129,0.3)' }}></div>
-                    <div style={{ width: '8px', height: `${(day.created / maxVal) * 100}%`, background: 'var(--accent-primary)', borderRadius: '4px 4px 0 0', boxShadow: '0 0 10px rgba(59,130,246,0.3)' }}></div>
-                  </div>
-                  <span className="text-muted mt-2" style={{ fontSize: '0.65rem', textTransform: 'uppercase' }}>{day.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      case 'alerts':
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><AlertTriangle size={16} color="var(--warning)" /> {widget.title}</h3>
-            <div className="flex flex-col gap-2" style={{ flex: 1, overflow: 'auto' }}>
-              {data.stats.overdueTasks > 0 && (
-                <div className="flex items-center gap-2" style={{ padding: '0.75rem', borderRadius: '8px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.1)', color: 'var(--danger)' }}>
-                  <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 2s infinite' }}></div>
-                  <div style={{ fontSize: '0.85rem' }}><strong>{data.stats.overdueTasks}</strong> tarefas em atraso</div>
-                </div>
-              )}
-              {data.stats.inProgressTasks > 5 && (
-                <div className="flex items-center gap-2" style={{ padding: '0.75rem', borderRadius: '8px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.1)', color: 'var(--warning)' }}>
-                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--warning)' }}></div>
-                   <div style={{ fontSize: '0.85rem' }}>Carga de trabalho alta</div>
-                </div>
-              )}
-              {data.stats.overdueTasks === 0 && (
-                <div className="flex-1 flex flex-col items-center justify-center text-muted gap-2">
-                   <CheckCircle2 size={32} opacity={0.2} />
-                   <span style={{ fontSize: '0.8rem' }}>Sem alertas críticos</span>
-                </div>
-              )}
-            </div>
-          </div>
-        );
-      case 'recentTasks': {
-        const recent = [...data.tasks].sort((a, b) => {
-          const da = a.created_at?.toDate ? a.created_at.toDate() : new Date(0);
-          const db = b.created_at?.toDate ? b.created_at.toDate() : new Date(0);
-          return db - da;
-        }).slice(0, widget.h > 1 ? 8 : 4);
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><RotateCcw size={16} color="var(--text-secondary)" /> {widget.title}</h3>
-            <div className="flex flex-col gap-2" style={{ flex: 1, overflow: 'auto' }}>
-              {recent.map(t => (
-                <div key={t.id} className="flex justify-between items-center p-2" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: `3px solid ${t.status === 'DONE' ? 'var(--success)' : 'var(--warning)'}` }}>
-                  <div style={{ overflow: 'hidden' }}>
-                    <div style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{t.title}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{t.assignee || 'Sem responsável'}</div>
-                  </div>
-                  <span style={{ fontSize: '0.7rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}>{t.status}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      case 'checkins': {
-        const recentCheckins = data.checkins.slice(0, widget.h > 1 ? 6 : 3);
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><MessageSquare size={16} color="var(--accent-primary)" /> {widget.title}</h3>
-            <div className="flex flex-col gap-3" style={{ flex: 1, overflow: 'auto' }}>
-              {recentCheckins.map(c => (
-                <div key={c.id} className="flex items-start gap-3 p-2" style={{ background: 'rgba(255,255,255,0.02)', borderRadius: '8px' }}>
-                  {c.userPhoto ? <img src={c.userPhoto} alt="" style={{ width: 28, height: 28, borderRadius: '50%' }} /> : <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyCenter: 'center', fontSize: '0.8rem', fontWeight: 'bold' }}>{c.userName?.charAt(0)}</div>}
-                  <div className="flex-1" style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600 }}>{c.userName}</div>
-                    <div style={{ fontSize: '0.75rem', color: '#cbd5e1', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.accomplished || 'Trabalhando...'}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        );
-      }
-      case 'pendingTasks': {
-        const pending = data.tasks.filter(t => t.status !== 'DONE').sort((a, b) => {
-          const da = a.dueDate ? new Date(a.dueDate) : new Date(9999999999999);
-          const db = b.dueDate ? new Date(b.dueDate) : new Date(9999999999999);
-          return da - db;
-        }).slice(0, widget.h > 1 ? 8 : 4);
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><Calendar size={16} color="#f472b6" /> {widget.title}</h3>
-            <div className="flex flex-col gap-2" style={{ flex: 1, overflow: 'auto' }}>
-              {pending.map(t => {
-                const isOverdue = t.dueDate && new Date(t.dueDate).setHours(0,0,0,0) < new Date().setHours(0,0,0,0);
-                return (
-                  <div key={t.id} className="p-2" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '8px', borderRight: `4px solid ${isOverdue ? 'var(--danger)' : 'var(--warning)'}` }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 500, whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{t.title}</div>
-                    <div style={{ fontSize: '0.7rem', color: isOverdue ? 'var(--danger)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <Clock size={10} /> {t.dueDate ? new Date(t.dueDate).toLocaleDateString('pt-BR') : 'Sem data'}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        );
-      }
-      case 'stat_todo': {
-        const todoTasks = data.tasks.filter(t => t.status === 'TODO' || t.status === 'Backlog').slice(0, widget.h > 1 ? 8 : 4);
-        return (
-          <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <h3 className="flex items-center gap-2" style={{ fontSize: '1rem', marginBottom: '1rem', fontWeight: 600 }}><List size={16} color="var(--text-secondary)" /> {widget.title}</h3>
-            <div className="flex flex-col gap-2" style={{ flex: 1, overflow: 'auto' }}>
-              {todoTasks.map(t => (
-                <div key={t.id} className="flex justify-between items-center p-2" style={{ background: 'rgba(255,255,255,0.03)', borderRadius: '6px', borderLeft: '3px solid var(--text-secondary)' }}>
-                  <div style={{ overflow: 'hidden', flex: 1 }}>
-                    <div style={{ fontSize: '0.85rem', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden' }}>{t.title}</div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{t.assignee || 'Sem responsável'}</div>
-                  </div>
-                  <span style={{ fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)', marginLeft: '8px' }}>{t.priority}</span>
-                </div>
-              ))}
-              {todoTasks.length === 0 && (
-                <div className="flex-1 flex items-center justify-center text-muted text-xs">Nenhuma tarefa pendente</div>
-              )}
-            </div>
-          </div>
-        );
-      }
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div
-      className={`glass-panel h-full w-full ${className || ''}`}
-      style={{
-        ...style,
-        padding: isCustomizing ? '1.5rem 0.75rem 0.75rem' : '1rem',
-        cursor: isCustomizing ? 'move' : 'default',
-        overflow: 'hidden',
-        position: 'relative',
-        transition: 'box-shadow 0.3s ease',
-        boxShadow: isCustomizing ? '0 0 20px rgba(59,130,246,0.3)' : 'var(--glass-shadow)',
-      }}
-      {...props}
-    >
-      {isCustomizing && (
-        <div style={{ 
-          position: 'absolute', 
-          top: 0, 
-          left: 0, 
-          right: 0,
-          display: 'flex', 
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          padding: '4px 8px',
-          background: 'var(--accent-primary)',
-          zIndex: 10
-        }}>
-          <input 
-            value={widget.title}
-            onChange={(e) => onTitleChange(widget.i, e.target.value)}
-            onClick={(e) => e.stopPropagation()}
-            style={{ 
-              background: 'rgba(0,0,0,0.2)', 
-              border: 'none', 
-              color: 'white', 
-              fontSize: '0.7rem', 
-              padding: '2px 6px', 
-              borderRadius: '4px',
-              width: '70%',
-              fontWeight: 'bold'
-            }}
-          />
-          <button 
-            onClick={(e) => { e.stopPropagation(); onRemove(widget.i); }}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', color: 'white' }}
-          >
-            <X size={14} />
-          </button>
-        </div>
-      )}
-      {content()}
-    </div>
-  );
-}
-
-export default function Dashboard() {
-  const [stats, setStats] = useState({
-    totalTasks: 0, completedTasks: 0, inProgressTasks: 0, overdueTasks: 0,
-    totalTeams: 0, totalUsers: 0, checkinsToday: 0, userCheckedIn: false,
-  });
+const Dashboard = ({ user }) => {
+  const navigate = useNavigate();
+  const [currentTab, setCurrentTab] = useState('geral');
   const [tasks, setTasks] = useState([]);
-  const [checkins, setCheckins] = useState([]);
   const [projects, setProjects] = useState([]);
-  const [selectedProjectId, setSelectedProjectId] = useState(localStorage.getItem('dashboard_project_id') || 'all');
+  const [teams, setTeams] = useState([]);
+  const [expandedKpi, setExpandedKpi] = useState(null);
   
-  const [layout, setLayout] = useState(DEFAULT_LAYOUT);
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const containerRef = useRef(null);
-  const [containerWidth, setContainerWidth] = useState(window.innerWidth - 300); // Baseado no sidebar de 280px + respiro
+  const isAdmin = user?.role?.toLowerCase() === 'admin' || user?.email === 'henrique@smartlab.com.br';
+  const container = useRef();
 
-  // ResizeObserver para largura fluida do grid
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      setContainerWidth(entries[0].contentRect.width);
+  useGSAP(() => {
+    // Sections fade & float up
+    gsap.from('.dashboard-section', {
+      duration: 1,
+      y: 40,
+      opacity: 0,
+      stagger: 0.15,
+      ease: 'power3.out',
     });
-    observer.observe(el);
-    // Leitura inicial imediata
-    setContainerWidth(el.offsetWidth);
-    return () => observer.disconnect();
+  }, { scope: container, dependencies: [currentTab] });
+
+  useEffect(() => {
+    // Escuta tarefas em tempo real
+    const qTasks = query(collection(db, 'tasks'), orderBy('createdAt', 'desc'));
+    const unsubTasks = onSnapshot(qTasks, (snap) => {
+      const t = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setTasks(t);
+    }, (err) => console.error("Erro ao buscar tarefas:", err));
+
+    // Escuta projetos em tempo real
+    const qProjects = query(collection(db, 'projects'), orderBy('createdAt', 'desc'));
+    const unsubProjects = onSnapshot(qProjects, (snap) => {
+      const p = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setProjects(p);
+    }, (err) => console.error("Erro ao buscar projetos:", err));
+
+    // Escuta equipes em tempo real
+    const qTeams = query(collection(db, 'teams'), orderBy('createdAt', 'desc'));
+    const unsubTeams = onSnapshot(qTeams, (snap) => {
+      const t = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+      setTeams(t);
+    }, (err) => console.error("Erro ao buscar equipes:", err));
+
+    return () => {
+      unsubTasks();
+      unsubProjects();
+      unsubTeams();
+    };
   }, []);
 
-  useEffect(() => {
-    const qProjects = query(collection(db, 'projects'), orderBy('name'));
-    const unsubProjects = onSnapshot(qProjects, (snapshot) => {
-      const projs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setProjects(projs);
-    });
+  const teamPerformance = teams.map(team => {
+    const teamTasks = tasks.filter(t => t.teamId === team.name || t.teamId === team.id);
+    const todo = teamTasks.filter(t => t.status === 'TODO').length;
+    const inProgress = teamTasks.filter(t => t.status === 'IN_PROGRESS').length;
+    const done = teamTasks.filter(t => t.status === 'DONE').length;
+    const total = teamTasks.length;
+    const completionRate = total ? Math.round((done / total) * 100) : 0;
+    return { ...team, todo, inProgress, done, total, completionRate };
+  }).sort((a, b) => b.completionRate - a.completionRate);
 
-    const qTasks = query(collection(db, 'tasks'));
-    const unsubTasks = onSnapshot(qTasks, (snapshot) => {
-      const taskData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setTasks(taskData);
-    });
+  const todoTasks = tasks.filter(t => t.status === 'TODO');
+  const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS');
+  const underReviewTasks = tasks.filter(t => t.status === 'UNDER_REVIEW');
+  const doneTasks = tasks.filter(t => t.status === 'DONE');
+  const overdueTasks = tasks.filter(t => {
+    if (t.status === 'DONE') return false;
+    if (!t.dueDate) return false;
+    return new Date(t.dueDate) < new Date();
+  });
 
-    const qTeams = query(collection(db, 'teams'));
-    const unsubTeams = onSnapshot(qTeams, (snapshot) => {
-      const teamData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      setStats(prev => ({ ...prev, totalTeams: teamData.length })); // Temporário, será filtrado
-    });
+  const handleKpiClick = (status) => {
+    setExpandedKpi(expandedKpi === status ? null : status);
+  };
 
-    const qUsers = query(collection(db, 'users'));
-    const unsubUsers = onSnapshot(qUsers, (snapshot) => setStats(prev => ({ ...prev, totalUsers: snapshot.size })));
+  const renderExpandedList = () => {
+    if (!expandedKpi) return null;
+    let list = [];
+    if (expandedKpi === 'TODO') list = todoTasks;
+    if (expandedKpi === 'IN_PROGRESS') list = inProgressTasks;
+    if (expandedKpi === 'UNDER_REVIEW') list = underReviewTasks;
+    if (expandedKpi === 'DONE') list = doneTasks;
+    if (expandedKpi === 'OVERDUE') list = overdueTasks;
 
-    const qCheckins = query(collection(db, 'checkins'), orderBy('created_at', 'desc'));
-    const unsubCheckins = onSnapshot(qCheckins, (snapshot) => {
-      setCheckins(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-    });
-
-    return () => { unsubTasks(); unsubTeams(); unsubUsers(); unsubCheckins(); unsubProjects(); };
-  }, []);
-
-  // Lógica de Filtragem por Projeto
-  useEffect(() => {
-    const project = projects.find(p => p.id === selectedProjectId);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const uid = auth.currentUser?.uid;
-
-    let filteredTasks = tasks;
-    if (project) {
-      filteredTasks = tasks.filter(t => 
-        (project.teamIds && project.teamIds.includes(t.teamId)) || 
-        (project.userIds && project.userIds.includes(t.userId))
-      );
-    }
-
-    let total = 0, completed = 0, inProgress = 0, overdue = 0;
-    filteredTasks.forEach(t => {
-      total++;
-      if (t.status === 'DONE') completed++;
-      if (t.status === 'IN_PROGRESS') inProgress++;
-      if (t.status !== 'DONE' && t.dueDate) {
-        const due = new Date(t.dueDate);
-        due.setHours(0, 0, 0, 0);
-        if (due < today) overdue++;
+    const getKpiTitle = () => {
+      switch(expandedKpi) {
+        case 'TODO': return 'Tarefas Pendentes';
+        case 'IN_PROGRESS': return 'Em Andamento';
+        case 'UNDER_REVIEW': return 'Em Avaliação';
+        case 'DONE': return 'Concluídas';
+        case 'OVERDUE': return 'Atrasadas';
+        default: return '';
       }
-    });
+    };
 
-    // Filtra checkins também
-    const filteredCheckins = project 
-      ? checkins.filter(c => project.userIds?.includes(c.userId) || project.teamIds?.includes(c.teamId))
-      : checkins;
-
-    let checkedInToday = 0, meCheckedIn = false;
-    filteredCheckins.forEach(c => {
-      const ts = c.created_at?.toDate ? c.created_at.toDate() : null;
-      if (ts && ts >= today) {
-        checkedInToday++;
-        if (c.userId === uid) meCheckedIn = true;
-      }
-    });
-
-    setStats(prev => ({ 
-      ...prev, 
-      totalTasks: total, 
-      completedTasks: completed, 
-      inProgressTasks: inProgress, 
-      overdueTasks: overdue,
-      checkinsToday: checkedInToday,
-      userCheckedIn: meCheckedIn,
-      totalTeams: project ? (project.teamIds?.length || 0) : prev.totalTeams
-    }));
-  }, [selectedProjectId, tasks, checkins, projects]);
-
-  // Persistência de Layout por Projeto
-  useEffect(() => {
-    if (!selectedProjectId) return;
-    const key = `dashboard_layout_${selectedProjectId}`;
-    const saved = localStorage.getItem(key);
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setLayout(parsed.map(item => {
-          const baseItem = DEFAULT_LAYOUT.find(d => d.i === item.i);
-          return baseItem ? { ...baseItem, ...item } : item;
-        }));
-      } catch (e) { setLayout(DEFAULT_LAYOUT); }
-    } else {
-      setLayout(DEFAULT_LAYOUT);
-    }
-  }, [selectedProjectId]);
-
-  const saveLayout = (newLayout) => {
-    const mergedLayout = newLayout.map(item => {
-      const existingItem = layout.find(l => l.i === item.i);
-      return existingItem ? { ...existingItem, ...item } : item;
-    });
-    setLayout(mergedLayout);
-    if (selectedProjectId) {
-      localStorage.setItem(`dashboard_layout_${selectedProjectId}`, JSON.stringify(mergedLayout));
-    }
-  };
-
-  const handleTitleChange = (id, newTitle) => {
-    const newLayout = layout.map(w => w.i === id ? { ...w, title: newTitle } : w);
-    setLayout(newLayout);
-    if (selectedProjectId) {
-      localStorage.setItem(`dashboard_layout_${selectedProjectId}`, JSON.stringify(newLayout));
-    }
-  };
-
-  const handleLayoutChange = (newLayout) => {
-    saveLayout(newLayout);
-  };
-
-  const removeWidget = (id) => {
-    const newLayout = layout.filter(w => w.i !== id);
-    saveLayout(newLayout);
-  };
-
-  const resetLayout = () => {
-    saveLayout(DEFAULT_LAYOUT);
-  };
-
-  const data = { stats, tasks, checkins };
-
-  return (
-    <div className="flex-col gap-4">
-      <style>{`
-        .react-grid-item {
-          transition: all 0.2s ease;
-        }
-        .react-grid-item.react-grid-placeholder {
-          background: var(--accent-primary);
-          opacity: 0.2;
-          border-radius: 12px;
-        }
-        .react-grid-item > .react-resizable-handle {
-          position: absolute;
-          width: 20px;
-          height: 20px;
-          bottom: 0;
-          right: 0;
-          cursor: se-resize;
-          background: linear-gradient(135deg, transparent 50%, var(--accent-primary) 60%);
-          border-radius: 0 0 8px 0;
-        }
-        .react-grid-item > .react-resizable-handle::after {
-          content: "";
-          position: absolute;
-          right: 3px;
-          bottom: 3px;
-          width: 8px;
-          height: 8px;
-          border-right: 2px solid white;
-          border-bottom: 2px solid white;
-        }
-        @keyframes pulse {
-          0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-          70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(239, 68, 68, 0); }
-          100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-        }
-      `}</style>
-
-      <div className="flex justify-between items-center" style={{ padding: '1.5rem 2rem 0' }}>
-        <div className="flex items-center gap-6">
-          <h1 style={{ margin: 0 }}>Dashboard</h1>
-          <select 
-            className="btn btn-secondary" 
-            value={selectedProjectId}
-            onChange={(e) => {
-              setSelectedProjectId(e.target.value);
-              localStorage.setItem('dashboard_project_id', e.target.value);
-            }}
-            style={{ minWidth: '200px', cursor: 'pointer' }}
-          >
-            <option value="all">Todos os Projetos</option>
-            {projects.map(p => (
-              <option key={p.id} value={p.id}>{p.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="flex gap-2">
-          {isCustomizing && (
-            <button className="btn btn-secondary text-sm" onClick={resetLayout}>
-              <RotateCcw size={16} /> Reset
-            </button>
-          )}
-          <button 
-            className={`btn ${isCustomizing ? 'btn-primary' : 'btn-secondary'}`} 
-            onClick={() => setIsCustomizing(!isCustomizing)}
-          >
-            <Grid size={18} />
-            {isCustomizing ? ' Concluir' : ' Personalizar'}
+    return (
+      <div className="mb-8 p-6 bg-slate-50 rounded-xl border-2 border-slate-200 animate-in fade-in zoom-in duration-300 shadow-inner">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="font-headline font-black text-lg text-smartlab-primary tracking-tight">
+            Detalhes: {getKpiTitle()}
+          </h3>
+          <button onClick={() => setExpandedKpi(null)} className="text-slate-400 hover:text-slate-900 transition-colors">
+            <span className="material-symbols-outlined font-black">close</span>
           </button>
         </div>
-      </div>
-
-      {isCustomizing && (
-        <div className="glass-panel p-3 text-sm" style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px dashed var(--accent-primary)' }}>
-          <strong>Modo Personalização:</strong> Arraste para mover • Arraste o canto azul para redimensionar • Clique no X para remover
-        </div>
-      )}
-
-      <div 
-        ref={containerRef}
-        style={{ 
-          minHeight: '800px', 
-          width: '100%'
-        }}
-      >
-        <GridLayout
-          className="layout"
-          layout={layout}
-          cols={COLS}
-          rowHeight={ROW_HEIGHT}
-          width={containerWidth}
-          onLayoutChange={handleLayoutChange}
-          isDraggable={isCustomizing}
-          isResizable={isCustomizing}
-          draggableHandle=".drag-handle"
-          margin={[12, 12]}
-          containerPadding={[10, 10]}
-        >
-          {layout.map(item => (
-            <div key={item.i} className="drag-handle h-full">
-              <Widget
-                widget={item}
-                data={data}
-                isCustomizing={isCustomizing}
-                onRemove={removeWidget}
-                onTitleChange={handleTitleChange}
-              />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+          {list.length === 0 ? (
+            <p className="text-slate-400 text-sm italic col-span-full">Nenhuma tarefa encontrada neste status.</p>
+          ) : list.map(t => (
+            <div key={t.id} className="flex items-center justify-between p-3 bg-white rounded-lg shadow-sm border border-slate-200/60 hover:border-slate-300 transition-colors">
+              <span className="font-medium text-slate-700 truncate mr-2" title={t.title}>{t.title}</span>
+              <span className="text-[10px] font-bold text-slate-400 bg-slate-50 px-2 py-1 rounded-md shrink-0 uppercase tracking-tighter border border-slate-100">{t.projectName || 'Geral'}</span>
             </div>
           ))}
-        </GridLayout>
+        </div>
+      </div>
+    );
+  };
+
+  const renderGeral = () => (
+    <>
+      <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mb-8 w-full">
+        {[
+          { title: 'Pendente', value: todoTasks.length, subtitle: 'A Fazer', icon: ListTodo, status: 'default', key: 'TODO' },
+          { title: 'Fluxo', value: inProgressTasks.length, subtitle: 'Em Andamento', icon: History, status: 'warning', key: 'IN_PROGRESS' },
+          { title: 'Revisão', value: underReviewTasks.length, subtitle: 'Em Avaliação', icon: Eye, status: 'info', key: 'UNDER_REVIEW' },
+          { title: 'Fim', value: doneTasks.length, subtitle: 'Concluídas', icon: CheckCircle2, status: 'success', key: 'DONE' },
+          { title: 'Alerta', value: overdueTasks.length, subtitle: 'Atrasadas', icon: AlertTriangle, status: 'danger', key: 'OVERDUE' },
+        ].map((card, i) => (
+          <KpiCard
+            key={card.key}
+            title={card.title}
+            value={card.value}
+            subtitle={card.subtitle}
+            icon={card.icon}
+            status={card.status}
+            isExpanded={expandedKpi === card.key}
+            onClick={() => handleKpiClick(card.key)}
+            style={{ animationDelay: `${i * 80}ms` }}
+            className="animate-fade-up"
+          />
+        ))}
+      </section>
+
+      {renderExpandedList()}
+
+      <section className={cn(
+        "dashboard-section grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12"
+      )}>
+        <div className="lg:col-span-2 bg-smartlab-surface p-8 rounded-[32px] shadow-xl border-2 border-smartlab-border flex flex-col relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent/0 via-accent/50 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          
+          <SectionHeader 
+            title="Fluxo de Produtividade"
+            subtitle="Análise de Rendimento Operacional em tempo real"
+            className="mb-8"
+          >
+            <div className="flex gap-2">
+              <select className="bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl font-black text-[10px] py-2.5 px-5 focus:border-accent outline-none uppercase tracking-widest text-smartlab-on-surface-variant transition-all hover:border-smartlab-on-surface">
+                <option>Esta Semana</option>
+                <option>Última Semana</option>
+              </select>
+            </div>
+          </SectionHeader>
+          
+          <div className="flex-1 flex items-end justify-between gap-3 sm:gap-6 mt-auto border-b-2 border-smartlab-border/50 pb-2 pt-8 min-h-[300px]">
+            {chartData.map((bar) => (
+              <div key={bar.day} className="flex flex-col items-center gap-4 flex-1 justify-end group/bar">
+                <div 
+                  className={cn(
+                    "w-full max-w-16 rounded-t-2xl transition-all duration-700 cursor-pointer relative",
+                    bar.active 
+                      ? 'bg-accent shadow-[0_0_30px_rgba(14,165,233,0.3)]' 
+                      : 'bg-smartlab-surface-low hover:bg-accent/20'
+                  )}
+                  style={{ height: bar.height }}
+                >
+                  {bar.active && <div className="absolute -top-1 left-0 w-full h-1 bg-white/40 rounded-full blur-[2px]" />}
+                </div>
+                <span className={cn(
+                  "text-[10px] font-black tracking-[0.2em] uppercase italic transition-colors",
+                  bar.active ? 'text-accent' : 'text-smartlab-on-surface-variant group-hover/bar:text-smartlab-on-surface'
+                )}>{bar.day}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="bg-smartlab-primary text-white p-10 rounded-[32px] shadow-2xl relative overflow-hidden flex flex-col justify-between border-2 border-white/5 group">
+          <div className="absolute top-0 right-0 w-80 h-80 bg-accent opacity-[0.05] rounded-full blur-[60px] -mr-24 -mt-24 group-hover:bg-accent/10 transition-colors" />
+          <div className="relative z-10">
+            <h2 className="text-3xl font-black mb-8 font-headline tracking-tight text-white leading-none">
+              Ações<br/>Rápidas
+            </h2>
+            <div className="space-y-4">
+              {[
+                { icon: Shield, label: 'Criar Equipe', sub: 'Novo squad', onClick: () => navigate('/teams?action=new') },
+                { icon: Users, label: 'Convidar Membro', sub: 'Expandir equipe', onClick: () => navigate('/control') },
+                { icon: Rocket, label: 'Lançar Projeto', sub: 'Nova iniciativa', onClick: () => navigate('/projects?action=new') },
+              ].map((action, idx) => (
+                <button key={idx} onClick={action.onClick} className="w-full flex items-center justify-between p-5 bg-white/5 hover:bg-white text-white hover:text-smartlab-primary rounded-2xl transition-all border-2 border-white/5 group/btn">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 bg-white/5 rounded-xl group-hover/btn:bg-smartlab-primary/5 transition-colors">
+                      <action.icon size={20} className="text-accent group-hover/btn:text-smartlab-primary transition-colors" />
+                    </div>
+                    <div className="text-left">
+                      <p className="font-black text-[11px] uppercase tracking-[0.1em]">{action.label}</p>
+                      <p className="text-[9px] font-bold opacity-40 uppercase tracking-widest mt-0.5">{action.sub}</p>
+                    </div>
+                  </div>
+                  <span className="material-symbols-outlined text-accent opacity-30 group-hover/btn:opacity-100 transition-all">arrow_forward</span>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="relative z-10 mt-12 pt-8 border-t-2 border-white/5">
+            <p className="text-white/30 text-[9px] font-black leading-relaxed flex items-center gap-3 uppercase tracking-[0.3em]">
+               <span className="w-2 h-2 bg-accent rounded-full animate-pulse shadow-[0_0_10px_rgba(14,165,233,0.8)]" />
+               Cloud Sync: Online
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section className="dashboard-section bg-smartlab-surface rounded-[24px] shadow-[var(--glass-shadow)] border-2 border-smartlab-border overflow-hidden mb-12">
+        <div className="p-8 border-b-2 border-smartlab-border flex flex-col md:flex-row justify-between md:items-center gap-4 bg-smartlab-surface-low/30">
+          <SectionHeader 
+            title="Carga de Trabalho por Equipe" 
+            subtitle="Distribuição de tarefas e velocidade de entrega por Squad" 
+            className="mb-0"
+          />
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-body">
+            <thead>
+              <tr className="bg-smartlab-surface-low text-smartlab-on-surface-variant font-black text-[10px] uppercase tracking-[0.2em] border-b border-smartlab-border">
+                <th className="px-8 py-5">Squad / Alocação</th>
+                <th className="px-8 py-5 text-center">Backlog</th>
+                <th className="px-8 py-5 text-center">Doing</th>
+                <th className="px-8 py-5 text-center">OEE Squad</th>
+                <th className="px-8 py-5">Status da Métrica</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-smartlab-border">
+              {teamPerformance.length === 0 ? (
+                <tr>
+                  <td colSpan="5" className="px-8 py-12 text-center text-smartlab-on-surface-variant italic font-medium">Nenhuma equipe registrada no sistema.</td>
+                </tr>
+              ) : teamPerformance.slice(0, 5).map(team => (
+                <tr key={team.id} className="hover:bg-smartlab-surface-low/50 transition-colors group">
+                  <td className="px-8 py-6">
+                    <span className="font-bold text-smartlab-on-surface block group-hover:text-black transition-colors">{team.name}</span>
+                    <span className="text-[10px] text-smartlab-on-surface-variant mt-1 block font-black uppercase tracking-widest">{team.members?.length || 0} Membros</span>
+                  </td>
+                  <td className="px-8 py-6 text-center text-lg font-black text-smartlab-on-surface-variant opacity-60">
+                    {team.todo}
+                  </td>
+                  <td className="px-8 py-6 text-center text-lg font-black text-accent">
+                    {team.inProgress}
+                  </td>
+                  <td className="px-8 py-6 text-center text-lg font-black text-smartlab-on-surface">
+                    {team.done}
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="w-full max-w-[120px] h-2 bg-smartlab-border rounded-full overflow-hidden">
+                      <div className={cn(
+                        "h-full rounded-full transition-all duration-1000",
+                        team.completionRate > 80 ? 'bg-emerald-500' : team.completionRate < 30 ? 'bg-red-500' : 'bg-smartlab-on-surface'
+                      )} style={{ width: `${team.completionRate || 0}%` }}></div>
+                    </div>
+                    <span className="text-[10px] font-black mt-2 block text-smartlab-on-surface-variant uppercase tracking-tighter">{team.completionRate || 0}% concluído</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="dashboard-section bg-smartlab-surface rounded-[24px] shadow-[var(--glass-shadow)] border-2 border-smartlab-border overflow-hidden mb-12">
+        <div className="p-8 border-b-2 border-smartlab-border flex flex-col md:flex-row justify-between md:items-center gap-4 bg-smartlab-surface-low/30">
+          <SectionHeader 
+            title="Status de Projetos" 
+            subtitle="Monitoramento de Iniciativas Críticas" 
+            className="mb-0"
+          />
+        </div>
+        
+        <div className="overflow-x-auto">
+          <table className="w-full text-left font-body">
+            <thead>
+              <tr className="bg-smartlab-surface-low text-smartlab-on-surface-variant font-black text-[10px] uppercase tracking-[0.2em] border-b border-smartlab-border">
+                <th className="px-8 py-5">Projeto</th>
+                <th className="px-8 py-5">Líder</th>
+                <th className="px-8 py-5">Status</th>
+                <th className="px-8 py-5">Progresso</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-smartlab-border">
+              {projects.length === 0 ? (
+                <tr>
+                  <td colSpan="4" className="px-8 py-12 text-center text-smartlab-on-surface-variant italic font-medium">Nenhum projeto registrado no sistema.</td>
+                </tr>
+              ) : projects.slice(0, 5).map(proj => (
+                <tr key={proj.id} className="hover:bg-smartlab-surface-low/50 transition-colors group">
+                  <td className="px-8 py-6">
+                    <span className="font-bold text-smartlab-on-surface block group-hover:text-black transition-colors">{proj.name}</span>
+                    <span className="text-[10px] text-smartlab-on-surface-variant mt-1 block font-black uppercase tracking-widest">{proj.area || 'Diversos'}</span>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-smartlab-on-surface flex items-center justify-center text-[10px] font-black text-smartlab-surface">
+                        {proj.leader?.charAt(0) || 'L'}
+                      </div>
+                      <span className="text-sm font-bold text-smartlab-on-surface">{proj.leader || 'N/A'}</span>
+                    </div>
+                  </td>
+                  <td className="px-8 py-6">
+                    <span className={cn(
+                      "px-3 py-1 text-[9px] font-black rounded border uppercase tracking-widest shadow-sm",
+                      proj.status === 'Crítico' ? 'bg-red-50 text-red-700 border-red-100' : 'bg-smartlab-surface-low text-smartlab-on-surface-variant border-smartlab-border'
+                    )}>
+                      {proj.status || 'Ativo'}
+                    </span>
+                  </td>
+                  <td className="px-8 py-6">
+                    <div className="w-full max-w-[120px] h-2 bg-smartlab-border rounded-full overflow-hidden">
+                      <div className={cn(
+                        "h-full rounded-full transition-all duration-1000",
+                        proj.progress > 80 ? 'bg-emerald-500' : proj.progress < 30 ? 'bg-red-500' : 'bg-smartlab-on-surface'
+                      )} style={{ width: `${proj.progress || 0}%` }}></div>
+                    </div>
+                    <span className="text-[10px] font-black mt-2 block text-smartlab-on-surface-variant uppercase tracking-tighter">{proj.progress || 0}% concluído</span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </>
+  );
+
+  const chartData = useMemo(() => [
+    {"day": "SEG", "height": "40%", "active": false},
+    {"day": "TER", "height": "65%", "active": false},
+    {"day": "QUA", "height": "85%", "active": true},
+    {"day": "QUI", "height": "50%", "active": false},
+    {"day": "SEX", "height": "75%", "active": false},
+    {"day": "SÁB", "height": "30%", "active": false}
+  ], []);
+
+  const tabs = useMemo(() => [
+    { id: 'geral', label: 'Geral', icon: 'dashboard', lucideIcon: LayoutDashboard },
+    { id: 'teams', label: 'Equipes', icon: 'groups', lucideIcon: Users },
+    { id: 'projects', label: 'Projetos', icon: 'engineering', lucideIcon: Database },
+    { id: 'users', label: 'Usuários', icon: 'manage_accounts', lucideIcon: Shield }
+  ].filter(tab => {
+    if (tab.id === 'users') return isAdmin;
+    if (tab.id === 'teams' || tab.id === 'projects') return isAdmin || user?.role === 'Gerente';
+    return true;
+  }), [isAdmin, user?.role]);
+
+  const renderActiveTab = () => {
+    switch (currentTab) {
+      case 'teams': return <TeamDashboard />;
+      case 'projects': return <ProjectDashboard />;
+      case 'users': return <UserDashboard />;
+      default: return renderGeral();
+    }
+  };
+
+  return (
+    <div className="pb-12 perspective-[1500px]" ref={container}>
+      <header className="dashboard-section flex flex-col md:flex-row justify-between md:items-end gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-5xl font-black tracking-tight text-smartlab-primary font-headline m-0 leading-none">
+            {currentTab === 'geral' ? 'Intelligence Hub' : 
+             currentTab === 'teams' ? 'Squad Analytics' :
+             currentTab === 'projects' ? 'Project Radar' : 'Access Control'}
+          </h1>
+          <p className="text-smartlab-on-surface-variant font-bold text-xs uppercase tracking-[0.2em] opacity-60">
+            {currentTab === 'geral' ? 'Visão consolidada da operação SmartLab' : 'Métricas granulares por contexto estratégico'}
+          </p>
+        </div>
+
+        <TabSwitcher 
+          tabs={tabs} 
+          activeTab={currentTab} 
+          onTabChange={setCurrentTab} 
+        />
+      </header>
+
+      <div className="dashboard-section">
+        {renderActiveTab()}
       </div>
     </div>
   );
-}
+};
+
+export default Dashboard;
