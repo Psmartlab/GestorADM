@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, TrendingUp, Target, Activity } from 'lucide-react';
+import { Users, TrendingUp, Target, Activity, Share2, Award } from 'lucide-react';
+import SectionHeader from '../components/common/SectionHeader';
+import KpiCard from '../components/common/KpiCard';
+import { cn } from '../utils/cn';
 
 export default function TeamDashboard() {
   const [teams, setTeams] = useState([]);
@@ -34,103 +37,79 @@ export default function TeamDashboard() {
   }).sort((a, b) => b.completionRate - a.completionRate);
 
   return (
-    <div className="animate-in pb-12">
-      <header className="mb-10">
-        <h2 className="text-3xl font-black text-slate-950 font-headline tracking-tighter uppercase italic flex items-center gap-4">
-          <Users size={32} className="text-slate-950" />
-          Squad Analytics
-        </h2>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 opacity-60">Visão consolidada do desempenho e alocação das equipes.</p>
-      </header>
+    <div className="pb-12 animate-in fade-in duration-500">
+      <SectionHeader 
+        title="Squad Analytics"
+        subtitle="Visão consolidada do desempenho, alocação e velocidade das equipes"
+        className="mb-12"
+      />
 
       {/* KPIs */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-slate-100 rounded-xl text-slate-400 group-hover:bg-slate-950 group-hover:text-white transition-all">
-              <Users size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-slate-300 italic">Estrutura</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">{teams.length}</p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Total de Equipes</h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-              <Activity size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-emerald-200 italic">Live</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">{activeTeams}</p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Equipes Ativas</h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-all">
-              <Target size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-blue-200 italic">Volume</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">{tasks.length}</p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Tarefas Registradas</h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-amber-50 rounded-xl text-amber-600 group-hover:bg-amber-500 group-hover:text-white transition-all">
-              <TrendingUp size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-amber-200 italic">Média</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">{avgTasksPerTeam}</p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Tarefas / Equipe</h3>
-        </div>
+        <KpiCard title="Estrutura" value={teams.length} subtitle="Total de Equipes" icon={Users} status="info" />
+        <KpiCard title="Life Operacional" value={activeTeams} subtitle="Equipes Ativas" icon={Activity} status="success" />
+        <KpiCard title="Volume Work" value={tasks.length} subtitle="Tarefas Totais" icon={Target} status="warning" />
+        <KpiCard title="Performance" value={avgTasksPerTeam} subtitle="Tarefas / Equipe" icon={TrendingUp} status="info" />
       </section>
 
       {/* Performance Table */}
-      <section className="bg-white rounded-[24px] shadow-sm border-2 border-slate-300 overflow-hidden mb-12">
-        <div className="p-8 border-b-2 border-slate-100 bg-slate-50/30">
-          <h2 className="text-2xl font-black text-slate-950 font-headline tracking-tighter uppercase italic">Carga de Trabalho por Equipe</h2>
-          <p className="text-slate-400 font-extrabold text-[10px] uppercase tracking-[0.2em] mt-1">Distribuição de tarefas e velocidade de entrega</p>
+      <section className="bg-smartlab-surface rounded-[32px] shadow-xl border-2 border-smartlab-border overflow-hidden mb-12 transition-all hover:shadow-2xl">
+        <div className="p-10 border-b-2 border-smartlab-border/30 bg-smartlab-surface-low/50 flex justify-between items-center relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent/0 via-accent/50 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <h2 className="text-2xl font-black text-smartlab-on-surface font-headline tracking-tighter uppercase italic">Carga de Trabalho por Equipe</h2>
+            <p className="text-smartlab-on-surface-variant font-extrabold text-[10px] uppercase tracking-[0.2em] mt-1 italic">Distribuição de tarefas e velocidade de entrega por Squad</p>
+          </div>
+          <div className="w-14 h-14 bg-smartlab-primary rounded-2xl flex items-center justify-center text-accent shadow-[0_0_20px_rgba(14,165,233,0.3)] border border-accent/20">
+            <Award size={28} />
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
           <table className="w-full text-left font-body">
             <thead>
-              <tr className="bg-slate-50 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-100 italic">
-                <th className="px-8 py-5">Equipe</th>
-                <th className="px-8 py-5">A Fazer</th>
-                <th className="px-8 py-5">Em Andamento</th>
-                <th className="px-8 py-5">Concluídas</th>
-                <th className="px-8 py-5">Taxa de Conclusão</th>
+              <tr className="bg-smartlab-surface-low text-smartlab-on-surface-variant font-black text-[10px] uppercase tracking-[0.2em] border-b-2 border-smartlab-border/30 italic">
+                <th className="px-10 py-6">Squad / Alocação</th>
+                <th className="px-10 py-6 text-center">Backlog</th>
+                <th className="px-10 py-6 text-center">Doing</th>
+                <th className="px-10 py-6 text-center">OEE Squad</th>
+                <th className="px-10 py-6">Status da Métrica</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y-2 divide-smartlab-border/10">
               {teamPerformance.map(team => (
-                <tr key={team.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-8 py-6">
-                    <span className="font-black text-slate-950 block tracking-tight uppercase italic">{team.name}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">Membros: {team.members?.length || 0}</span>
+                <tr key={team.id} className="hover:bg-accent/5 transition-colors group">
+                  <td className="px-10 py-8">
+                    <span className="font-black text-smartlab-on-surface block tracking-tighter uppercase italic text-lg leading-tight group-hover:text-accent transition-colors">{team.name}</span>
+                    <span className="text-[10px] font-bold text-smartlab-on-surface-variant uppercase tracking-widest mt-1 block opacity-60 italic">Operacionais: {team.members?.length || 0} Membros</span>
                   </td>
-                  <td className="px-8 py-6 text-[11px] font-black text-slate-400">{team.todo}</td>
-                  <td className="px-8 py-6 text-[11px] font-black text-blue-600">{team.inProgress}</td>
-                  <td className="px-8 py-6 text-[11px] font-black text-emerald-600">{team.done}</td>
-                  <td className="px-8 py-6">
-                    <div className="flex items-center gap-4">
-                      <div className="w-full max-w-[120px] h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div className="h-full bg-slate-950 rounded-full transition-all duration-1000" style={{ width: `${team.completionRate}%` }}></div>
+                  <td className="px-10 py-8 text-center text-xl font-black font-headline text-smartlab-on-surface-variant italic opacity-40">
+                    {team.todo}
+                  </td>
+                  <td className="px-10 py-8 text-center text-xl font-black font-headline text-accent italic">
+                    {team.inProgress}
+                  </td>
+                  <td className="px-10 py-8 text-center text-xl font-black font-headline text-smartlab-on-surface italic">
+                    {team.done}
+                  </td>
+                  <td className="px-10 py-8">
+                    <div className="flex items-center gap-5">
+                      <div className="flex-1 max-w-[160px] h-3 bg-smartlab-surface-low rounded-full overflow-hidden border border-smartlab-border p-[2px]">
+                        <div 
+                          className="h-full bg-accent rounded-full transition-all duration-1000 relative overflow-hidden" 
+                          style={{ width: `${team.completionRate}%` }}
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/20 to-white/0 animate-shimmer" />
+                        </div>
                       </div>
-                      <span className="text-[10px] font-black text-slate-950">{team.completionRate}%</span>
+                      <span className="text-sm font-black text-smartlab-on-surface italic">{team.completionRate}%</span>
                     </div>
                   </td>
                 </tr>
               ))}
               {teamPerformance.length === 0 && (
                 <tr>
-                  <td colSpan="5" className="px-8 py-20 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px] italic">
-                    Nenhuma equipe encontrada ou dados indisponíveis.
+                  <td colSpan="5" className="px-10 py-24 text-center text-smartlab-on-surface-variant font-black uppercase tracking-[0.3em] text-[10px] italic">
+                    Nenhuma equipe registrada no sistema.
                   </td>
                 </tr>
               )}

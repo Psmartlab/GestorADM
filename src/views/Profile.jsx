@@ -6,6 +6,9 @@ import {
   MessageSquare, UserCircle, Globe, Hash
 } from 'lucide-react';
 
+import { cn } from '../utils/cn';
+import SectionHeader from '../components/common/SectionHeader';
+
 export default function Profile({ user }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -71,38 +74,33 @@ export default function Profile({ user }) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="mb-8 flex justify-between items-end">
-        <div>
-          <h1 className="text-3xl font-black text-slate-800 tracking-tight flex items-center gap-3">
-            <UserCircle size={32} className="text-primary" />
-            Meu Perfil
-          </h1>
-          <p className="text-slate-500 mt-1 font-medium">Gerencie suas informações pessoais e de contato.</p>
-        </div>
-        {success && (
-          <div className="bg-emerald-50 text-emerald-600 px-4 py-2 rounded-xl border border-emerald-100 flex items-center gap-2 font-bold text-sm animate-bounce">
-            <CheckCircle size={18} /> Perfil atualizado!
-          </div>
-        )}
-      </header>
+    <div className="pb-20 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <SectionHeader 
+        title="Meu Perfil"
+        subtitle="Gerencie suas informações pessoais e de contato para a rede SmartLab"
+        className="mb-12"
+      />
 
       <form onSubmit={handleSave} className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Lado Esquerdo: Avatar e Bio */}
         <div className="md:col-span-1 space-y-6">
-          <div className="bg-white p-6 rounded-[2rem] border-2 border-slate-100 shadow-sm flex flex-col items-center">
-            <div className="relative group">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-primary/10 shadow-inner bg-slate-50">
-                {profileData.photo ? (
-                  <img src={profileData.photo} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="w-full h-full flex items-center justify-center text-4xl font-black text-primary/20 bg-primary/5">
-                    {profileData.name.charAt(0)}
-                  </div>
-                )}
+          <div className="bg-smartlab-surface p-8 rounded-[32px] border-2 border-smartlab-border shadow-xl flex flex-col items-center relative overflow-hidden group">
+            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent/0 via-accent/40 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+            
+            <div className="relative group/avatar">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-accent/20 shadow-2xl bg-smartlab-surface-low p-1">
+                <div className="w-full h-full rounded-full overflow-hidden">
+                  {profileData.photo ? (
+                    <img src={profileData.photo} alt="Profile" className="w-full h-full object-cover" />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center text-4xl font-black text-accent bg-accent/5">
+                      {profileData.name.charAt(0)}
+                    </div>
+                  )}
+                </div>
               </div>
-              <label className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform">
-                <Camera size={18} />
+              <label className="absolute bottom-0 right-0 p-3 bg-accent text-white rounded-2xl shadow-lg cursor-pointer hover:scale-110 active:scale-95 transition-all border-2 border-smartlab-surface">
+                <Camera size={20} />
                 <input 
                   type="text" 
                   placeholder="URL da Foto" 
@@ -111,143 +109,153 @@ export default function Profile({ user }) {
                 />
               </label>
             </div>
-            <h3 className="mt-4 font-black text-slate-800 text-lg">{profileData.name}</h3>
-            <p className="text-sm text-slate-400 font-bold uppercase tracking-widest">{user?.role || 'Usuário'}</p>
             
-            <div className="w-full mt-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-1">Mini Bio</label>
+            <div className="text-center mt-6">
+              <h3 className="font-black text-smartlab-on-surface text-xl uppercase italic tracking-tighter">{profileData.name}</h3>
+              <p className="text-[10px] font-black text-accent uppercase tracking-[0.2em] mt-1 italic">{user?.role || 'Operador Especialista'}</p>
+            </div>
+            
+            <div className="w-full mt-8 pt-8 border-t-2 border-smartlab-border/30 space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-[0.2em] px-1 italic">Declaração de Bio</label>
                 <textarea 
                   value={profileData.bio}
                   onChange={e => setProfileData({...profileData, bio: e.target.value})}
-                  className="w-full bg-slate-50 border-2 border-slate-100 rounded-2xl p-4 text-sm font-medium focus:border-primary focus:bg-white outline-none transition-all min-h-[120px] resize-none"
-                  placeholder="Conte um pouco sobre você..."
+                  className="w-full bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl p-4 text-sm font-bold text-smartlab-on-surface focus:border-accent focus:bg-smartlab-surface outline-none transition-all min-h-[140px] resize-none placeholder:text-smartlab-on-surface-variant/20 italic leading-relaxed"
+                  placeholder="Descreva sua atuação e especialidades..."
                 />
               </div>
             </div>
           </div>
           
-          <div className="bg-blue-50/50 p-6 rounded-[2rem] border-2 border-blue-100/50">
-             <h4 className="font-bold text-blue-800 text-sm flex items-center gap-2 mb-2">
-               <Globe size={16} /> Visibilidade
+          <div className="bg-accent/5 p-8 rounded-[32px] border-2 border-accent/10 shadow-inner group">
+             <h4 className="font-black text-accent text-xs uppercase tracking-widest flex items-center gap-3 mb-3 italic">
+               <Globe size={18} className="group-hover:rotate-12 transition-transform" /> Visibilidade Operacional
              </h4>
-             <p className="text-xs text-blue-600 font-medium leading-relaxed">
-               Suas informações de contato ficam visíveis para administradores e membros da sua equipe para facilitar a colaboração.
+             <p className="text-[11px] text-smartlab-on-surface-variant font-bold leading-relaxed opacity-70 italic">
+               Suas informações de contato ficam visíveis para administradores e membros da sua equipe para facilitar a colaboração e tempo de resposta.
              </p>
           </div>
         </div>
 
         {/* Lado Direito: Campos de Formulário */}
-        <div className="md:col-span-2 space-y-6">
-          <div className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 shadow-sm space-y-8">
+        <div className="md:col-span-2 space-y-8">
+          <div className="bg-smartlab-surface p-10 rounded-[40px] border-2 border-smartlab-border shadow-2xl space-y-10 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-64 h-64 bg-accent/5 rounded-full blur-[80px] -mr-32 -mt-32 pointer-events-none" />
             
             {/* Seção: Identificação */}
-            <div>
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                <User size={14} className="text-primary" /> Identificação básica
+            <div className="relative">
+              <h4 className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-[0.3em] mb-8 flex items-center gap-3 italic">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                  <User size={16} />
+                </div>
+                Identificação de Usuário
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 ml-1">Nome Completo</label>
-                  <div className="relative">
-                    <User size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-widest ml-1 italic">Nome para Registro</label>
+                  <div className="relative group">
+                    <User size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-smartlab-on-surface-variant group-focus-within:text-accent transition-colors" />
                     <input 
                       type="text"
                       value={profileData.name}
                       onChange={e => setProfileData({...profileData, name: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:border-primary focus:bg-white outline-none transition-all"
+                      className="w-full bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black text-smartlab-on-surface uppercase italic tracking-tight focus:border-accent focus:bg-smartlab-surface outline-none transition-all"
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 ml-1">Apelido (Como quer ser chamado)</label>
-                  <div className="relative">
-                    <Hash size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-widest ml-1 italic">Identificação (Codinome)</label>
+                  <div className="relative group">
+                    <Hash size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-smartlab-on-surface-variant group-focus-within:text-accent transition-colors" />
                     <input 
                       type="text"
                       value={profileData.nickname}
                       onChange={e => setProfileData({...profileData, nickname: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:border-primary focus:bg-white outline-none transition-all"
-                      placeholder="Ex: Rick"
+                      className="w-full bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black text-smartlab-on-surface uppercase italic tracking-tight focus:border-accent focus:bg-smartlab-surface outline-none transition-all placeholder:text-smartlab-on-surface-variant/20"
+                      placeholder="Ex: CALLSIGN"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <hr className="border-slate-100" />
+            <div className="h-px bg-smartlab-border/30 w-full" />
 
             {/* Seção: Contato */}
-            <div>
-              <h4 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] mb-6 flex items-center gap-2">
-                <Phone size={14} className="text-primary" /> Informações de Contato
+            <div className="relative">
+              <h4 className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-[0.3em] mb-8 flex items-center gap-3 italic">
+                <div className="w-8 h-8 rounded-lg bg-accent/10 flex items-center justify-center text-accent">
+                  <Phone size={16} />
+                </div>
+                Comunicação e Redes
               </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 ml-1">E-mail Corporativo</label>
-                  <div className="relative">
-                    <Mail size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-8">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-widest ml-1 italic">E-mail Operacional (Fixo)</label>
+                  <div className="relative opacity-60">
+                    <Mail size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-smartlab-on-surface-variant" />
                     <input 
                       type="email"
                       disabled
                       value={profileData.email}
-                      className="w-full bg-slate-100 border-2 border-slate-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold text-slate-400 cursor-not-allowed"
+                      className="w-full bg-smartlab-border/10 border-2 border-smartlab-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black text-smartlab-on-surface-variant uppercase italic tracking-tight cursor-not-allowed"
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 ml-1">Celular / Telefone</label>
-                  <div className="relative">
-                    <Phone size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-widest ml-1 italic">Linha Direta (VOICE)</label>
+                  <div className="relative group">
+                    <Phone size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-smartlab-on-surface-variant group-focus-within:text-accent transition-colors" />
                     <input 
                       type="tel"
                       value={profileData.phone}
                       onChange={e => setProfileData({...profileData, phone: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:border-primary focus:bg-white outline-none transition-all"
+                      className="w-full bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black text-smartlab-on-surface uppercase italic tracking-tight focus:border-accent focus:bg-smartlab-surface outline-none transition-all"
                       placeholder="(00) 00000-0000"
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-bold text-slate-500 ml-1">WhatsApp</label>
-                  <div className="relative">
-                    <MessageSquare size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-widest ml-1 italic">Mensageiro Urgente</label>
+                  <div className="relative group">
+                    <MessageSquare size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-smartlab-on-surface-variant group-focus-within:text-accent transition-colors" />
                     <input 
                       type="tel"
                       value={profileData.whatsapp}
                       onChange={e => setProfileData({...profileData, whatsapp: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:border-primary focus:bg-white outline-none transition-all"
-                      placeholder="(00) 00000-0000"
+                      className="w-full bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black text-smartlab-on-surface uppercase italic tracking-tight focus:border-accent focus:bg-smartlab-surface outline-none transition-all"
+                      placeholder="WhatsApp / Telegram"
                     />
                   </div>
                 </div>
-                <div className="space-y-1.5 sm:col-span-2">
-                  <label className="text-xs font-bold text-slate-500 ml-1">Endereço Residencial / Comercial</label>
-                  <div className="relative">
-                    <MapPin size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <div className="space-y-2 sm:col-span-2">
+                  <label className="text-[10px] font-black text-smartlab-on-surface-variant uppercase tracking-widest ml-1 italic">Unidade / Base de Operação</label>
+                  <div className="relative group">
+                    <MapPin size={20} className="absolute left-5 top-1/2 -translate-y-1/2 text-smartlab-on-surface-variant group-focus-within:text-accent transition-colors" />
                     <input 
                       type="text"
                       value={profileData.address}
                       onChange={e => setProfileData({...profileData, address: e.target.value})}
-                      className="w-full bg-slate-50 border-2 border-slate-100 rounded-xl py-3 pl-12 pr-4 text-sm font-bold focus:border-primary focus:bg-white outline-none transition-all"
-                      placeholder="Rua, Número, Bairro, Cidade - UF"
+                      className="w-full bg-smartlab-surface-low border-2 border-smartlab-border rounded-2xl py-4 pl-14 pr-6 text-sm font-black text-smartlab-on-surface uppercase italic tracking-tight focus:border-accent focus:bg-smartlab-surface outline-none transition-all"
+                      placeholder="Identificação de localidade ou escritório"
                     />
                   </div>
                 </div>
               </div>
             </div>
 
-            <div className="pt-4">
+            <div className="pt-6">
               <button 
                 type="submit"
                 disabled={saving}
-                className="w-full bg-primary text-white py-4 rounded-2xl font-black text-lg shadow-lg shadow-primary/20 hover:brightness-110 active:scale-[0.98] transition-all flex items-center justify-center gap-3 disabled:opacity-50"
+                className="w-full bg-smartlab-on-surface text-smartlab-surface py-5 rounded-[24px] font-black text-lg uppercase tracking-[0.2em] italic shadow-2xl hover:bg-accent hover:text-white active:scale-[0.98] transition-all flex items-center justify-center gap-4 disabled:opacity-50"
               >
                 {saving ? (
-                  <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
+                  <div className="animate-spin rounded-full h-6 w-6 border-t-2 border-b-2 border-smartlab-surface"></div>
                 ) : (
                   <>
-                    <Save size={20} /> Salvar Alterações
+                    <Save size={24} /> Confirmar Alterações
                   </>
                 )}
               </button>

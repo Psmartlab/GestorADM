@@ -1,7 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { collection, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Briefcase, BarChart3, AlertCircle, PlayCircle } from 'lucide-react';
+import { Briefcase, BarChart3, AlertCircle, PlayCircle, Layers, TrendingUp } from 'lucide-react';
+import SectionHeader from '../components/common/SectionHeader';
+import KpiCard from '../components/common/KpiCard';
+import { cn } from '../utils/cn';
 
 export default function ProjectDashboard() {
   const [projects, setProjects] = useState([]);
@@ -36,115 +39,87 @@ export default function ProjectDashboard() {
   }).sort((a, b) => b.progress - a.progress);
 
   return (
-    <div className="animate-in pb-12">
-      <header className="mb-10">
-        <h2 className="text-3xl font-black text-slate-950 font-headline tracking-tighter uppercase italic flex items-center gap-4">
-          <Briefcase size={32} className="text-slate-950" />
-          Project Radar
-        </h2>
-        <p className="text-slate-400 font-bold text-xs uppercase tracking-widest mt-2 opacity-60">Visão consolidada do progresso, prazos e marcos dos projetos.</p>
-      </header>
+    <div className="pb-12 animate-in fade-in duration-500">
+      <SectionHeader 
+        title="Project Radar"
+        subtitle="Visão consolidada do progresso, prazos e marcos dos projetos em tempo real"
+        className="mb-12"
+      />
 
       {/* KPIs */}
       <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-slate-100 rounded-xl text-slate-400 group-hover:bg-slate-950 group-hover:text-white transition-all">
-              <Briefcase size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-slate-300 italic">Portfolio</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">{projects.length}</p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Total de Projetos</h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-emerald-50 rounded-xl text-emerald-600 group-hover:bg-emerald-500 group-hover:text-white transition-all">
-              <PlayCircle size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-emerald-200 italic">Core</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">{activeProjects}</p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Projetos Ativos</h3>
-        </div>
-
-        <div className="bg-white p-6 rounded-[24px] shadow-sm border-2 border-slate-300 hover:shadow-md transition-all group">
-          <div className="flex justify-between items-start mb-4">
-            <div className="p-2 bg-blue-50 rounded-xl text-blue-600 group-hover:bg-blue-500 group-hover:text-white transition-all">
-              <BarChart3 size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-blue-200 italic">Métrica</span>
-          </div>
-          <p className="text-4xl font-black text-slate-950 tracking-tighter leading-none">
-            {projects.length ? Math.round(projectProgress.reduce((acc, curr) => acc + curr.progress, 0) / projects.length) : 0}%
-          </p>
-          <h3 className="text-slate-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2">Média de Progresso</h3>
-        </div>
-
-        <div className="bg-red-50 p-6 rounded-[24px] shadow-sm border-2 border-red-100 hover:shadow-md transition-all group relative overflow-hidden">
-          <div className="flex justify-between items-start mb-4 relative z-10">
-            <div className="p-2 bg-red-600 rounded-xl text-white">
-              <AlertCircle size={20} />
-            </div>
-            <span className="font-black text-[10px] uppercase tracking-widest text-red-300 italic">Risco</span>
-          </div>
-          <p className="text-4xl font-black text-red-700 tracking-tighter leading-none relative z-10">{overdueTasks}</p>
-          <h3 className="text-red-400 font-bold text-[10px] uppercase tracking-[0.2em] mt-2 relative z-10">Tarefas em Atraso</h3>
-          <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500 text-red-950">
-             <span className="material-symbols-outlined text-9xl">warning</span>
-          </div>
-        </div>
+        <KpiCard title="Portfólio" value={projects.length} subtitle="Total de Projetos" icon={Briefcase} status="info" />
+        <KpiCard title="Ativos" value={activeProjects} subtitle="Em Execução" icon={PlayCircle} status="success" />
+        <KpiCard title="OEE Médio" value={`${projects.length ? Math.round(projectProgress.reduce((acc, curr) => acc + curr.progress, 0) / projects.length) : 0}%`} subtitle="Performance Global" icon={BarChart3} status="info" />
+        <KpiCard title="Risco" value={overdueTasks} subtitle="Tarefas em Atraso" icon={AlertCircle} status="error" />
       </section>
 
       {/* Progress Table */}
-      <section className="bg-white rounded-[24px] shadow-sm border-2 border-slate-300 overflow-hidden mb-12">
-        <div className="p-8 border-b-2 border-slate-100 bg-slate-50/30">
-          <h2 className="text-2xl font-black text-slate-950 font-headline tracking-tighter uppercase italic">Saúde dos Projetos</h2>
-          <p className="text-slate-400 font-extrabold text-[10px] uppercase tracking-[0.2em] mt-1">Acompanhamento de OEE e tarefas por projeto</p>
+      <section className="bg-smartlab-surface rounded-[32px] shadow-xl border-2 border-smartlab-border overflow-hidden mb-12 transition-all hover:shadow-2xl">
+        <div className="p-10 border-b-2 border-smartlab-border/30 bg-smartlab-surface-low/50 flex justify-between items-center relative overflow-hidden group">
+          <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-accent/0 via-accent/50 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity" />
+          <div className="relative">
+            <h2 className="text-2xl font-black text-smartlab-on-surface font-headline tracking-tighter uppercase italic">Saúde dos Projetos</h2>
+            <p className="text-smartlab-on-surface-variant font-extrabold text-[10px] uppercase tracking-[0.2em] mt-1 italic">Análise de OEE e prazos por unidade</p>
+          </div>
+          <div className="w-14 h-14 bg-smartlab-primary rounded-2xl flex items-center justify-center text-accent shadow-[0_0_20px_rgba(14,165,233,0.3)] border border-accent/20">
+            <Layers size={28} />
+          </div>
         </div>
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto overflow-y-hidden custom-scrollbar">
           <table className="w-full text-left font-body">
             <thead>
-              <tr className="bg-slate-50 text-slate-400 font-black text-[10px] uppercase tracking-[0.2em] border-b border-slate-100 italic">
-                <th className="px-8 py-5">Projeto</th>
-                <th className="px-8 py-5">Equipe Responsável</th>
-                <th className="px-8 py-5">Alertas</th>
-                <th className="px-8 py-5">Progresso Geral</th>
+              <tr className="bg-smartlab-surface-low text-smartlab-on-surface-variant font-black text-[10px] uppercase tracking-[0.2em] border-b-2 border-smartlab-border/30 italic">
+                <th className="px-10 py-6">Projeto / ID</th>
+                <th className="px-10 py-6">Owner Equipe</th>
+                <th className="px-10 py-6 text-center">Status Alerta</th>
+                <th className="px-10 py-6">Progresso Operacional</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100">
+            <tbody className="divide-y-2 divide-smartlab-border/10">
               {projectProgress.map(proj => (
-                <tr key={proj.id} className="hover:bg-slate-50/50 transition-colors group">
-                  <td className="px-8 py-6">
-                    <span className="font-black text-slate-950 block tracking-tight uppercase italic">{proj.name}</span>
-                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1 block">
-                      {proj.status === 'Active' || proj.status === 'Ativo' ? 'Em andamento' : proj.status}
+                <tr key={proj.id} className="hover:bg-accent/5 transition-colors group">
+                  <td className="px-10 py-8">
+                    <span className="font-black text-smartlab-on-surface block tracking-tighter uppercase italic text-lg leading-tight group-hover:text-accent transition-colors">{proj.name}</span>
+                    <span className="text-[10px] font-bold text-smartlab-on-surface-variant uppercase tracking-widest mt-1 block opacity-60 italic">
+                      {proj.status === 'Active' || proj.status === 'Ativo' ? 'Fase de Execução' : proj.status}
                     </span>
                   </td>
-                  <td className="px-8 py-6">
-                    <span className="text-[11px] font-black text-slate-500 uppercase tracking-tight">{proj.teamId || '-'}</span>
+                  <td className="px-10 py-8">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-lg bg-smartlab-surface-low border border-smartlab-border flex items-center justify-center text-[10px] font-black text-accent shadow-sm">
+                        {proj.teamId?.charAt(0).toUpperCase() || '—'}
+                      </div>
+                      <span className="text-[11px] font-black text-smartlab-on-surface-variant uppercase tracking-tight">{proj.teamId || 'SEM ALOCAÇÃO'}</span>
+                    </div>
                   </td>
-                  <td className="px-8 py-6">
+                  <td className="px-10 py-8 text-center">
                     {proj.overdue > 0 ? (
-                      <span className="px-3 py-1 bg-red-50 text-red-600 border border-red-100 text-[9px] font-black uppercase tracking-widest rounded-lg shadow-sm">
-                        {proj.overdue} Atrasadas
+                      <span className="px-4 py-2 bg-red-500/10 text-red-500 border-2 border-red-500/20 text-[9px] font-black uppercase tracking-widest rounded-xl shadow-inner animate-pulse">
+                        {proj.overdue} Tasks Críticas
                       </span>
                     ) : (
-                      <span className="text-[10px] font-black text-emerald-500 bg-emerald-50 px-3 py-1 rounded-lg border border-emerald-100 uppercase tracking-widest">Normal</span>
+                      <span className="text-[9px] font-black text-accent bg-accent/5 px-4 py-2 rounded-xl border-2 border-accent/10 uppercase tracking-widest shadow-inner">Estável</span>
                     )}
                   </td>
-                  <td className="px-8 py-6">
-                    <div className="flex flex-col gap-2 w-full max-w-[200px]">
+                  <td className="px-10 py-8">
+                    <div className="flex flex-col gap-3 w-full max-w-[240px]">
                       <div className="flex justify-between items-end">
-                        <span className="text-[11px] font-black text-slate-950">{proj.progress}%</span>
-                        <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{proj.done}/{proj.total} TAREFAS</span>
+                        <span className="text-sm font-black text-smartlab-on-surface italic">{proj.progress}%</span>
+                        <span className="text-[9px] font-black text-smartlab-on-surface-variant uppercase tracking-[0.2em] opacity-40">{proj.done}/{proj.total} ENTREGAS</span>
                       </div>
-                      <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                      <div className="h-3 bg-smartlab-surface-low rounded-full overflow-hidden border border-smartlab-border p-[2px]">
                         <div 
-                          className={`h-full rounded-full transition-all duration-1000 ${proj.progress === 100 ? 'bg-emerald-500' : proj.progress < 30 ? 'bg-red-500' : 'bg-slate-950'}`} 
+                          className={cn(
+                            "h-full rounded-full transition-all duration-1000 relative overflow-hidden shadow-[0_0_10px_rgba(14,165,233,0.3)]",
+                            proj.progress === 100 ? 'bg-accent' : 
+                            proj.progress < 30 ? 'bg-red-500' : 
+                            'bg-accent'
+                          )} 
                           style={{ width: `${proj.progress}%` }}
-                        ></div>
+                        >
+                          <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/30 to-white/0 animate-shimmer" />
+                        </div>
                       </div>
                     </div>
                   </td>
@@ -152,8 +127,8 @@ export default function ProjectDashboard() {
               ))}
               {projectProgress.length === 0 && (
                 <tr>
-                  <td colSpan="4" className="px-8 py-20 text-center text-slate-300 font-bold uppercase tracking-widest text-[10px] italic">
-                    Nenhum projeto encontrado ou dados indisponíveis.
+                  <td colSpan="4" className="px-10 py-24 text-center text-smartlab-on-surface-variant font-black uppercase tracking-[0.3em] text-[10px] italic">
+                    Nenhum projeto registrado no sistema.
                   </td>
                 </tr>
               )}

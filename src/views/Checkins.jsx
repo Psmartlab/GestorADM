@@ -90,7 +90,12 @@ export default function Checkins() {
 
   return (
     <div className="flex-col gap-6" style={{ height: '100%' }}>
-      <h1>Check-ins da Equipe</h1>
+      <header className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-5xl font-black tracking-tight text-smartlab-primary font-headline m-0 leading-none">Check-ins da Equipe</h1>
+          <p className="text-smartlab-on-surface-variant font-bold text-xs uppercase tracking-[0.2em] opacity-60">Acompanhamento diário de humor e produtividade</p>
+        </div>
+      </header>
 
       {/* Form Section */}
       {!todayDone ? (

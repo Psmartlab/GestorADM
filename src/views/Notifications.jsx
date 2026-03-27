@@ -68,25 +68,20 @@ export default function Notifications({ user }) {
 
   return (
     <div className="p-8">
-      <div className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-10">
-        <div className="flex items-center gap-4">
-          <div className="p-4 bg-slate-950 text-white rounded-[24px] shadow-lg">
-            <Bell size={32} />
-          </div>
-          <div>
-            <h1 className="text-4xl font-black tracking-tighter text-slate-950 font-headline m-0 uppercase italic">Central do Admin</h1>
-            <p className="text-slate-400 font-bold text-sm uppercase tracking-widest opacity-60">Gestão de alertas, métricas e campanhas</p>
-          </div>
+      <header className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-5xl font-black tracking-tight text-smartlab-primary font-headline m-0 leading-none">Central do Admin</h1>
+          <p className="text-smartlab-on-surface-variant font-bold text-xs uppercase tracking-[0.2em] opacity-60">Gestão de alertas, métricas e campanhas</p>
         </div>
-        <div className="flex gap-3">
-          <button className="flex items-center gap-2 px-6 py-3 bg-slate-100 text-slate-500 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:bg-slate-200" onClick={() => alert("Configuração atualizada.")}>
-            <Filter size={18} /> Configurar
+        <div className="flex gap-4">
+          <button className="flex items-center justify-center gap-2 px-6 py-3 bg-smartlab-surface-low text-smartlab-on-surface rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:bg-smartlab-border shadow-sm border-2 border-smartlab-border group" onClick={() => alert("Configuração atualizada.")}>
+            <Filter size={18} className="text-accent group-hover:scale-110 transition-transform" /> Configurar
           </button>
-          <button className="flex items-center gap-2 px-6 py-3 bg-slate-950 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all hover:scale-105 shadow-lg active:scale-95" onClick={generateReport}>
-            <FileText size={18} /> Gerar Relatórios
+          <button className="flex items-center justify-center gap-3 px-8 py-4 bg-smartlab-primary text-white rounded-2xl font-black text-[10px] uppercase tracking-[0.2em] transition-all hover:scale-105 shadow-xl active:scale-95 group" onClick={generateReport}>
+            <FileText size={18} className="text-accent group-hover:rotate-12 transition-transform" /> Gerar Relatórios
           </button>
         </div>
-      </div>
+      </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
         {/* Alertas Ativos */}

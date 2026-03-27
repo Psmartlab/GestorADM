@@ -13,97 +13,62 @@
 }
 
 :root {
-  /* Smartlab Design System Tokens */
-  --smartlab-primary: #020617;
-  --smartlab-secondary: #1e293b;
-  --smartlab-tertiary: #006576;
-  --smartlab-bg: #f5f7f9;
-  --smartlab-surface: #f5f7f9;
-  --smartlab-surface-low: #eef1f3;
-  --smartlab-on-surface: #1a1c1e;
-  --smartlab-on-surface-variant: #595c5e;
-  --smartlab-gradient-primary: linear-gradient(135deg, #4a40e0 0%, #6a37d4 100%);
+  /* Smartlab Design System Tokens - HSL for better transparency control */
+  --smartlab-primary-h: 222;
+  --smartlab-primary-s: 47%;
+  --smartlab-primary-l: 11%;
+  
+  --smartlab-accent-h: 199;
+  --smartlab-accent-s: 89%;
+  --smartlab-accent-l: 48%;
+
+  --smartlab-primary: hsl(var(--smartlab-primary-h), var(--smartlab-primary-s), var(--smartlab-primary-l));
+  --smartlab-secondary: #0f172a;
+  --smartlab-tertiary: #0ea5e9;
+  
+  --smartlab-bg: #e2e8f0; /* Darkened from f8fafc to pop white cards */
+  --smartlab-surface: #ffffff;
+  --smartlab-surface-low: #f8fafc;
+  --smartlab-surface-hover: #f1f5f9;
+  
+  --smartlab-on-surface: #0f172a;
+  --smartlab-on-surface-variant: #334155; /* Darkened for better readability and contrast */
+  --smartlab-border: rgba(15, 23, 42, 0.06);
+  
+  --smartlab-gradient-primary: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
   
   --danger: #ef4444;
   --success: #10b981;
   --warning: #f59e0b;
   
-  --glass-shadow: 0 8px 32px 0 rgba(74, 64, 224, 0.08);
-  --glass-border: 1px solid rgba(74, 64, 224, 0.1);
-  --glass-bg: rgba(255, 255, 255, 0.7);
+  /* Antigravity Glassmorphism */
+  --glass-shadow: 0 20px 40px -4px rgba(15, 23, 42, 0.08), 0 0 0 1px rgba(15, 23, 42, 0.02);
+  --glass-border: 1px solid rgba(15, 23, 42, 0.05);
+  --glass-bg: rgba(255, 255, 255, 0.85);
+  
+  --radius-xl: 24px;
+  --radius-2xl: 32px;
 }
 
-/* ── DARK MODE ── */
 html.dark {
   color-scheme: dark;
-  --smartlab-bg: #0f1117;
-  --smartlab-surface: #0f1117;
-  --smartlab-surface-low: #1a1d27;
-  --smartlab-on-surface: #e8eaf0;
-  --smartlab-on-surface-variant: #9095ab;
-  --glass-bg: rgba(26, 29, 39, 0.85);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.4);
-  --glass-border: 1px solid rgba(255, 255, 255, 0.07);
+  --smartlab-bg: #020617;
+  --smartlab-surface: #0f172a;
+  --smartlab-surface-low: #1e293b;
+  --smartlab-surface-hover: #334155;
+  
+  --smartlab-on-surface: #f8fafc;
+  --smartlab-on-surface-variant: #cbd5e1; /* Lightened for contrast */
+  --smartlab-border: rgba(255, 255, 255, 0.08);
+  
+  --glass-bg: rgba(15, 23, 42, 0.7);
+  --glass-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  --glass-border: 1px solid rgba(255, 255, 255, 0.05);
 }
 
-/* Transition for everything */
+/* Transition for theme switching and interactive states (Buttery Smooth 0.3s) */
 *, *::before, *::after {
-  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.15s ease, box-shadow 0.25s ease;
-}
-
-/* ── FORCED DARK OVERRIDES ── */
-/* This catches hardcoded Tailwind classes and redirects them to theme vars */
-html.dark body {
-  background-color: var(--smartlab-bg);
-  color: var(--smartlab-on-surface);
-}
-
-html.dark .bg-white,
-html.dark .bg-slate-50,
-html.dark .bg-surface-container-lowest { 
-  background-color: var(--smartlab-surface-low) !important; 
-}
-
-html.dark .text-slate-800,
-html.dark .text-slate-900,
-html.dark .text-on-surface { 
-  color: var(--smartlab-on-surface) !important; 
-}
-
-html.dark .text-slate-600,
-html.dark .text-slate-500,
-html.dark .text-muted { 
-  color: var(--smartlab-on-surface-variant) !important; 
-}
-
-html.dark .border-slate-100, 
-html.dark .border-slate-200,
-html.dark .border-slate-300,
-html.dark .border-surface-container { 
-  border-color: rgba(255,255,255,0.08) !important; 
-}
-
-html.dark .shadow-sm,
-html.dark .shadow-md,
-html.dark .shadow {
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
-}
-
-/* Specific component fixes */
-html.dark input, 
-html.dark select, 
-html.dark textarea {
-  background-color: #1a1d27 !important;
-  color: #e8eaf0 !important;
-  border-color: #2d3142 !important;
-}
-
-
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
+  transition: background-color 0.3s ease-out, border-color 0.3s ease-out, color 0.3s ease-out, box-shadow 0.3s ease-out, transform 0.3s ease-out;
 }
 
 body {
@@ -112,6 +77,25 @@ body {
   color: var(--smartlab-on-surface);
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+
+html {
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+#root {
+  position: relative;
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* Glassmorphism Utilities */

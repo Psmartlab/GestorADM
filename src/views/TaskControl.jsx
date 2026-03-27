@@ -10,16 +10,17 @@ const STATUS_COLUMNS = [
   { id: 'DONE', title: 'Concluído', color: '#10b981', dotClass: 'bg-emerald-500' }
 ];
 
-export default function TaskControl() {
+export default function TaskControl({ user }) {
   const [viewMode, setViewMode] = useState('team'); // 'team' or 'user'
   const [tasks, setTasks] = useState([]);
   const [teams, setTeams] = useState([]);
+  const [projects, setProjects] = useState([]);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [expandedRows, setExpandedRows] = useState({});
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentTask, setCurrentTask] = useState(null); // null for new, {id, ...} for edit
-  const [editingTaskData, setEditingTaskData] = useState({ title: '', description: '', priority: 'Media', status: 'TODO', assignee: '', teamId: '', startDate: '', dueDate: '' });
+  const [editingTaskData, setEditingTaskData] = useState({ title: '', description: '', priority: 'Media', status: 'TODO', assignee: '', teamId: '', projectId: '', startDate: '', dueDate: '' });
 
   useEffect(() => {
     const unsubTasks = onSnapshot(collection(db, 'tasks'), (snapshot) => {
@@ -32,8 +33,11 @@ export default function TaskControl() {
       setUsers(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
       setLoading(false);
     });
+    const unsubProjects = onSnapshot(collection(db, 'projects'), (snapshot) => {
+      setProjects(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    });
 
-    return () => { unsubTasks(); unsubTeams(); unsubUsers(); };
+    return () => { unsubTasks(); unsubTeams(); unsubUsers(); unsubProjects(); };
   }, []);
 
   const toggleRow = (id) => {
@@ -42,19 +46,52 @@ export default function TaskControl() {
 
   const handleSaveTask = async (e) => {
     e.preventDefault();
+
+    if (!editingTaskData.title || !editingTaskData.description || !editingTaskData.priority || !editingTaskData.status || !editingTaskData.startDate || !editingTaskData.dueDate || !editingTaskData.teamId || !editingTaskData.projectId || !editingTaskData.assignee) {
+      alert("Por favor, preencha todos os campos obrigatórios (Título, Descrição, Prioridade, Datas, Equipe, Responsável e Projeto).");
+      return;
+    }
+
     try {
+      let finalData = { ...editingTaskData };
+      
+      const oldStatus = currentTask?.status;
+      const newStatus = editingTaskData.status;
+
+      if (newStatus === 'DONE' && oldStatus !== 'DONE') {
+         const note = prompt("Observação de validação (opcional):") || '';
+         finalData.validationNote = note;
+         finalData.isValidated = true;
+         finalData.rejectionNote = '';
+      }
+
       if (currentTask?.id) {
-        await updateDoc(doc(db, 'tasks', currentTask.id), editingTaskData);
+        await updateDoc(doc(db, 'tasks', currentTask.id), finalData);
       } else {
         if (!editingTaskData.assignee) {
           alert("Por favor, atribua a tarefa a um usuário.");
           return;
         }
         await addDoc(collection(db, 'tasks'), {
-          ...editingTaskData,
-          created_at: new Date()
+          ...finalData,
+          created_at: new Date(),
+          created_by: user.uid || user.id
         });
       }
+
+      if (newStatus === 'UNDER_REVIEW' && oldStatus !== 'UNDER_REVIEW') {
+        const admins = users.filter(u => u.role === 'Admin');
+        for (const admin of admins) {
+          await addDoc(collection(db, 'notifications'), { 
+            to: admin.email, 
+            from: user.email, 
+            title: 'Tarefa Aguardando Avaliação', 
+            message: `A tarefa "${finalData.title}" está pronta para ser avaliada.`, 
+            type: 'info', read: false, createdAt: new Date() 
+          });
+        }
+      }
+
       setIsModalOpen(false);
       alert("Ação realizada com sucesso!");
     } catch (e) { alert(e.message); }
@@ -69,7 +106,7 @@ export default function TaskControl() {
 
   const openModal = (task = null, defaults = {}) => {
     setCurrentTask(task);
-    setEditingTaskData(task ? { ...task } : { title: '', description: '', priority: 'Media', status: 'TODO', assignee: '', teamId: '', ...defaults });
+    setEditingTaskData(task ? { ...task } : { title: '', description: '', priority: 'Media', status: 'TODO', assignee: '', teamId: '', projectId: '', ...defaults });
     setIsModalOpen(true);
   };
 
@@ -128,35 +165,54 @@ export default function TaskControl() {
     );
   };
 
-  const swimlanes = viewMode === 'team' ? teams : users.filter(u => u.name !== 'Aguardando Login');
+  const isAdminRole = user?.role === 'Admin';
+  const isManagerRole = user?.role === 'Gerente' || user?.role === 'Manager';
+
+  // Teams that this user is allowed to see
+  const visibleTeams = isAdminRole 
+    ? teams 
+    : (isManagerRole ? teams.filter(t => t.manager === user?.email) : []);
+
+  // Set of emails of users that belong to the visible teams
+  const visibleUserEmails = new Set();
+  visibleTeams.forEach(t => {
+    if (t.manager) visibleUserEmails.add(t.manager);
+    (t.members || []).forEach(m => visibleUserEmails.add(m));
+  });
+
+  // Users that this user is allowed to see
+  const visibleUsers = isAdminRole 
+    ? users.filter(u => u.name !== 'Aguardando Login')
+    : users.filter(u => u.name !== 'Aguardando Login' && visibleUserEmails.has(u.email));
+
+  const swimlanes = viewMode === 'team' ? visibleTeams : visibleUsers;
 
   return (
     <div className="flex-col gap-6" style={{ height: '100%' }}>
-      <header className="flex justify-between items-center">
-        <div>
-          <h1>Controle de Tarefas</h1>
-          <p className="text-muted">Visão administrativa por {viewMode === 'team' ? 'equipes' : 'usuários'}</p>
+      <header className="flex flex-col md:flex-row justify-between md:items-end gap-6 mb-12">
+        <div className="space-y-1">
+          <h1 className="text-5xl font-black tracking-tight text-smartlab-primary font-headline m-0 leading-none">
+            Visão Gerencial
+          </h1>
+          <p className="text-smartlab-on-surface-variant font-bold text-xs uppercase tracking-[0.2em] opacity-60">
+            Visão administrativa por {viewMode === 'team' ? 'equipes' : 'usuários'}
+          </p>
         </div>
-        <div className="flex gap-4 items-center">
-          <div className="flex gap-2 bg-black/20 p-1 rounded-lg">
+        <div className="flex gap-4 items-center mt-6 md:mt-0">
+          <div className="flex gap-2 bg-smartlab-surface-low border-2 border-smartlab-border p-1 rounded-2xl shadow-sm">
             <button 
-              className={`btn btn-sm ${viewMode === 'team' ? 'btn-primary' : 'btn-secondary'}`}
+              className={`flex flex-1 items-center justify-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${viewMode === 'team' ? 'bg-smartlab-primary text-white shadow-md' : 'text-smartlab-on-surface hover:bg-smartlab-primary/5'}`}
               onClick={() => setViewMode('team')}
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
             >
-              <Users size={16} /> Por Equipes
+              <Users size={16} /> Equipes
             </button>
             <button 
-              className={`btn btn-sm ${viewMode === 'user' ? 'btn-primary' : 'btn-secondary'}`}
+              className={`flex flex-1 items-center justify-center gap-2 px-6 py-3 rounded-xl font-black text-[10px] uppercase tracking-[0.2em] transition-all ${viewMode === 'user' ? 'bg-smartlab-primary text-white shadow-md' : 'text-smartlab-on-surface hover:bg-smartlab-primary/5'}`}
               onClick={() => setViewMode('user')}
-              style={{ padding: '0.4rem 0.8rem', fontSize: '0.85rem' }}
             >
-              <User size={16} /> Por Usuários
+              <User size={16} /> Usuários
             </button>
           </div>
-          <button className="btn" onClick={() => openModal()}>
-            <LayoutGrid size={18} /> Nova Tarefa
-          </button>
         </div>
       </header>
 
@@ -300,6 +356,17 @@ export default function TaskControl() {
 
               <div className="flex gap-4">
                 <div className="flex-1 space-y-1.5">
+                  <label className="font-bold text-slate-500 text-xs uppercase tracking-wider">Projeto</label>
+                  <select
+                    value={editingTaskData.projectId || ''}
+                    onChange={e => setEditingTaskData({...editingTaskData, projectId: e.target.value})}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:border-primary transition-all text-slate-800 font-medium"
+                  >
+                    <option value="">Sem Projeto</option>
+                    {projects.filter(p => isAdminRole || (p.owners || []).includes(user?.id) || (p.userIds || []).includes(user?.id) || (p.owner === user?.id)).map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                </div>
+                <div className="flex-1 space-y-1.5">
                   <label className="font-bold text-slate-500 text-xs uppercase tracking-wider">Equipe</label>
                   <select
                     value={editingTaskData.teamId || ''}
@@ -307,7 +374,7 @@ export default function TaskControl() {
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:border-primary transition-all text-slate-800 font-medium"
                   >
                     <option value="">Sem Equipe</option>
-                    {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {visibleTeams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                 </div>
                 <div className="flex-1 space-y-1.5">
@@ -319,7 +386,7 @@ export default function TaskControl() {
                     className="w-full px-4 py-3 rounded-xl border-2 border-slate-200 bg-slate-50 focus:border-primary transition-all text-slate-800 font-medium"
                   >
                     <option value="" disabled>Selecionar...</option>
-                    {users.map(u => <option key={u.id} value={u.email}>{u.name || u.email}</option>)}
+                    {visibleUsers.map(u => <option key={u.id} value={u.email}>{u.name || u.email}</option>)}
                   </select>
                 </div>
               </div>
